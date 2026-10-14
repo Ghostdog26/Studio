@@ -61,8 +61,27 @@ function zodExpression(schema: unknown, path = "input"): string {
 
   const value = schema as Record<string, unknown>;
   const type = value.type;
+  const supportedKeywords = new Set([
+    "type", "properties", "required", "additionalProperties", "items", "enum",
+    "minLength", "maxLength", "minimum", "maximum", "minItems", "maxItems",
+    "format", "title", "description", "default", "examples", "$schema", "$id",
+  ]);
+  for (const key of Object.keys(value)) {
+    if (!supportedKeywords.has(key)) {
+      throw new Error(`Unsupported JSON Schema keyword ${key} at ${path}.`);
+    }
+  }
+  if (value.format !== undefined && value.format !== "email" && value.format !== "uri") {
+    throw new Error(`Unsupported JSON Schema format at ${path}.`);
+  }
+  if (Array.isArray(value.enum) && (type === "object" || type === "array")) {
+    throw new Error(`Object and array enums are not supported at ${path}.`);
+  }
 
   if (type === "object") {
+    if (value.additionalProperties !== undefined && typeof value.additionalProperties !== "boolean") {
+      throw new Error(`Schema-valued additionalProperties is not supported at ${path}.`);
+    }
     const properties =
       value.properties && typeof value.properties === "object"
         ? (value.properties as Record<string, unknown>)
@@ -76,28 +95,31 @@ function zodExpression(schema: unknown, path = "input"): string {
       const expression = zodExpression(property, `${path}.${key}`);
       return `${jsonLiteral(key)}: ${required.has(key) ? expression : `${expression}.optional()`}`;
     });
-    return `z.object({ ${entries.join(", ")} })`;
+    return `z.${value.additionalProperties === false ? "strictObject" : "looseObject"}({ ${entries.join(", ")} })`;
   }
 
   if (type === "array") {
     if (!value.items) {
       throw new Error(`Array schema at ${path} must declare items.`);
     }
-    return `z.array(${zodExpression(value.items, `${path}[]`)})`;
+    let expression = `z.array(${zodExpression(value.items, `${path}[]`)})`;
+    if (typeof value.minItems === "number") expression += `.min(${value.minItems})`;
+    if (typeof value.maxItems === "number") expression += `.max(${value.maxItems})`;
+    return expression;
   }
 
   if (Array.isArray(value.enum) && value.enum.length > 0) {
-    if (value.enum.length === 1) {
-      return `z.literal(${jsonLiteral(value.enum[0])})`;
+    if (value.enum.some((item) => item !== null && !["string", "number", "boolean"].includes(typeof item))) {
+      throw new Error(`Enum values must be primitives at ${path}.`);
     }
-    if (
-      value.enum.every((item) => typeof item === "string") &&
-      value.enum.length > 1
-    ) {
-      return `z.enum(${jsonLiteral(value.enum)})`;
-    }
-    const options = value.enum.map((item) => `z.literal(${jsonLiteral(item)})`);
-    return `z.union([${options.join(", ")}])`;
+    const expression = value.enum.length === 1
+      ? `z.literal(${jsonLiteral(value.enum[0])})`
+      : value.enum.every((item) => typeof item === "string")
+        ? `z.enum(${jsonLiteral(value.enum)})`
+        : `z.union([${value.enum.map((item) => `z.literal(${jsonLiteral(item)})`).join(", ")}])`;
+    if (!type) return expression;
+    const { enum: _enum, ...baseSchema } = value;
+    return `${expression}.and(${zodExpression(baseSchema, path)})`;
   }
 
   let expression: string;
@@ -181,7 +203,7 @@ form.addEventListener("submit", async (event) => {
       args[key] = field.value === "" ? undefined : Number(field.value);
     } else if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
       const raw = field.value.trim();
-      if (raw === "" && !form.querySelector<HTMLInputElement>(\`[name="\${key}"]\`)?.required) continue;
+      if (raw === "" && !field.required) continue;
       if (property.type === "object" || property.type === "array") {
         try { args[key] = JSON.parse(raw); }
         catch { show(\`Enter valid JSON for \${key}.\`); return; }
@@ -349,6 +371,7 @@ export const definition = {
         },
         { path: "src/ui.ts", content: uiSource(component, tool) },
         { path: "src/style.css", content: UI_CSS },
+        { path: "src/vite-env.d.ts", content: '/// <reference types="vite/client" />\n' },
         {
           path: "vite.ui.config.ts",
           content: `import { defineConfig } from "vite";
@@ -393,8 +416,6 @@ export default defineConfig({
             "@cloudflare/vite-plugin": "^1.64.0",
             "@cloudflare/workers-types": "^5.20260729.1",
             "@types/node": "^26.0.1",
-            "@types/react": "^19.2.17",
-            "@vitejs/plugin-react": "^6.0.3",
             typescript: "^6.0.3",
             vite: "^8.1.0",
             wrangler: "^4.145.0",
@@ -418,8 +439,8 @@ import { createServer, type RuntimeEnv } from "./server";
 export interface Env extends RuntimeEnv {}
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return createMcpHandler(() => createServer(env))(request, env, ctx);
+  fetch(request: Request, env: Env): Promise<Response> {
+    return createMcpHandler(() => createServer(env)).fetch(request);
   },
 } satisfies ExportedHandler<Env>;
 `,
@@ -556,11 +577,13 @@ import type { Request, Response } from "express";
 import { createServer } from "./server.js";
 
 const port = Number(process.env.PORT ?? "3001");
+const host = process.env.MCP_HOST ?? "127.0.0.1";
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be a valid TCP port.");
 }
 
-const app = createMcpExpressApp({ host: "127.0.0.1" });
+const allowedHosts = process.env.MCP_ALLOWED_HOSTS?.split(",").map((value) => value.trim()).filter(Boolean);
+const app = createMcpExpressApp({ host, ...(allowedHosts?.length ? { allowedHosts } : {}) });
 app.use(cors());
 app.all("/mcp", async (req: Request, res: Response) => {
   const server = createServer({
@@ -589,7 +612,7 @@ app.all("/mcp", async (req: Request, res: Response) => {
   }
 });
 
-app.listen(port, "127.0.0.1", () => {
+app.listen(port, host, () => {
   process.stdout.write(\`MCP server listening on port \${port}/mcp\\n\`);
 });
 `,
@@ -606,6 +629,7 @@ RUN npm run build
 FROM node:22-alpine
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV MCP_HOST=0.0.0.0
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
@@ -621,7 +645,7 @@ CMD ["node", "dist/main.js"]
     {
       path: ".env.example",
       content:
-        "PORT=3001\nFOUNDRY_API_BASE_URL=http://127.0.0.1:8080/api\nFOUNDRY_API_TOKEN=\n",
+        "PORT=3001\nMCP_HOST=127.0.0.1\nMCP_ALLOWED_HOSTS=localhost,127.0.0.1\nFOUNDRY_API_BASE_URL=http://127.0.0.1:8080/api\nFOUNDRY_API_TOKEN=\n",
     },
     ...uiFiles,
     {
@@ -631,7 +655,10 @@ CMD ["node", "dist/main.js"]
   ];
 
   const files = target === "cloudflare" ? cloudflareFiles : openshellFiles;
-  return files;
+  return [...files, {
+    path: ".gitignore",
+    content: "node_modules/\ndist/\n.wrangler/\n.env\n.dev.vars\n",
+  }];
 }
 
 export function generateMcpPackage(
@@ -714,6 +741,8 @@ openshell sandbox create \\
 \`\`\`
 
 OpenShell prints the service address. Connect an MCP client to its \`/mcp\` endpoint. This is an HTTP server, not a local stdio subprocess.
+
+The container binds to \`0.0.0.0\` so the sandbox service can be reached. Configure \`MCP_ALLOWED_HOSTS\` with the sandbox's service hostname to enable host validation. This is not authentication.
 
 Set \`FOUNDRY_API_BASE_URL\` and \`FOUNDRY_API_TOKEN\` in the sandbox environment using your gateway's approved secret and policy workflow. The default sandbox policy may block external API calls; allow only the Agent Foundry API host that the tool needs.
 
