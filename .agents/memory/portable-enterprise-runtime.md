@@ -14,3 +14,9 @@ Keep package generation independent of provider credentials. The initial NVIDIA 
 **Why:** The CLI-based package route does not require NVIDIA/GitHub package-registry credentials, and no provider account or OpenShell gateway was connected when this approach was chosen.
 
 **How to apply:** Distinguish generated/build-verified packages from actual remote deployments. Do not describe an OpenShell gateway or Cloudflare account as connected without verifying it.
+
+The user wants Cloudflare's runtime and NVIDIA OpenShell to run as containers on Replit infrastructure, not on their local machine or an external host.
+
+**Why:** The user explicitly corrected the proposed self-hosted deployment location.
+
+**How to apply:** Do not substitute an off-platform Docker deployment for this requirement. Explain Replit's container-hosting limitations before proposing a different architecture; package downloads alone do not satisfy the requested hosted runtimes.
