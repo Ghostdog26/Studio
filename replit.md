@@ -1,6 +1,6 @@
-# [Project name]
+# Agent Foundry
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Agent Foundry is a shared enterprise control plane for grounded knowledge retrieval, standardized agent definitions, and MCP server/app contracts that can target Cloudflare or NVIDIA OpenShell.
 
 ## Run & Operate
 
@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/agent-foundry` — React workspace for knowledge, agents, MCP components, and runtime status
+- `artifacts/api-server/src/routes/foundry.ts` — workspace API, retrieval/reranking, and response cache
+- `lib/api-spec/openapi.yaml` — source of truth for generated API schemas and hooks
+- `lib/db/src/schema/` — Postgres models for wiki documents, agent definitions, MCP components, and query cache/history
+- `lib/agent-runtime` — provider-neutral Cloudflare and NVIDIA OpenShell adapter contracts
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Keep Cloudflare and NVIDIA OpenShell behind a shared runtime adapter interface so agent and JSON Schema contracts remain portable.
+- Use Postgres as the workspace source of truth; store query responses by normalized query hash with a ten-minute TTL.
+- Retrieval uses lexical candidate selection followed by a separate title/tag/phrase/coverage reranking pass. The LLM answers only from cited wiki excerpts.
+- Runtime adapters are scaffolds until provider access is configured; the API reports them as disconnected rather than implying live execution.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Users can manage shared wiki documents, ask cited questions over that knowledge, build reusable agents, define MCP servers and MCP Apps with JSON Schema, and inspect Cloudflare/NVIDIA adapter readiness.
 
 ## User preferences
 

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Agent Foundry"
+description = "A collaborative enterprise agent platform for building knowledge workspaces, deploying agents, and authoring interoperable MCP servers and apps across Cloudflare and NVIDIA OpenShell runtimes."
+version = "1.0.0"
+id = "artifacts/agent-foundry"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19602
+
+[services.development]
+run = "pnpm --filter @workspace/agent-foundry run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/agent-foundry", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/agent-foundry/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19602"
+BASE_PATH = "/"
