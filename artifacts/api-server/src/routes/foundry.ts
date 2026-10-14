@@ -8,6 +8,7 @@ import {
   CreateComponentResponse,
   CreateKnowledgeBody,
   CreateKnowledgeResponse,
+  DownloadComponentPackageQueryParams,
   DeleteAgentParams,
   DeleteComponentParams,
   DeleteKnowledgeParams,
@@ -38,6 +39,7 @@ import {
 } from "@workspace/db";
 import { runtimeAdapters } from "@workspace/agent-runtime";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { generateMcpPackage } from "../lib/mcp-packages";
 
 const router: IRouter = Router();
 
@@ -267,6 +269,54 @@ router.get("/components", async (_req, res): Promise<void> => {
     .from(mcpComponentsTable)
     .orderBy(desc(mcpComponentsTable.updatedAt));
   res.json(ListComponentsResponse.parse(items));
+});
+
+router.get("/component-packages", async (req, res): Promise<void> => {
+  const parsed = DownloadComponentPackageQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Provide a valid component ID and package target." });
+    return;
+  }
+
+  const [component] = await db
+    .select()
+    .from(mcpComponentsTable)
+    .where(eq(mcpComponentsTable.id, parsed.data.id))
+    .limit(1);
+  if (!component) {
+    res.status(404).json({ error: "MCP component not found." });
+    return;
+  }
+  if (component.kind !== "server" && component.kind !== "app") {
+    res.status(422).json({ error: "Only MCP server and app definitions can be generated." });
+    return;
+  }
+
+  try {
+    const archive = generateMcpPackage(
+      {
+        id: component.id,
+        name: component.name,
+        description: component.description,
+        kind: component.kind,
+        transport: component.transport,
+        jsonSchema: component.jsonSchema,
+      },
+      parsed.data.target,
+    );
+    res.setHeader("Content-Type", "application/gzip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${archive.filename}"`,
+    );
+    res.setHeader("Content-Length", archive.buffer.byteLength);
+    res.end(archive.buffer);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "MCP package generation failed.";
+    req.log.warn({ componentId: component.id, error: message }, "MCP package generation failed");
+    res.status(422).json({ error: message });
+  }
 });
 
 router.post("/components", async (req, res): Promise<void> => {

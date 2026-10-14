@@ -229,3 +229,19 @@ export interface McpComponentUpdate {
   status?: McpComponentUpdateStatus;
 }
 
+export type DownloadComponentPackageParams = {
+/**
+ * @minimum 1
+ */
+id: number;
+target: DownloadComponentPackageTarget;
+};
+
+export type DownloadComponentPackageTarget = typeof DownloadComponentPackageTarget[keyof typeof DownloadComponentPackageTarget];
+
+
+export const DownloadComponentPackageTarget = {
+  cloudflare: 'cloudflare',
+  openshell: 'openshell',
+} as const;
+

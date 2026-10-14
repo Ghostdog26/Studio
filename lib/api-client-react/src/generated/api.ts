@@ -23,6 +23,7 @@ import type {
   Agent,
   AgentInput,
   AgentUpdate,
+  DownloadComponentPackageParams,
   HealthStatus,
   KnowledgeAnswer,
   KnowledgeDocument,
@@ -1289,6 +1290,90 @@ export const useDeleteComponent = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteComponentMutationOptions(options));
     }
+
+export const getDownloadComponentPackageUrl = (params: DownloadComponentPackageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/component-packages?${stringifiedParams}` : `/api/component-packages`
+}
+
+/**
+ * @summary Generate a runnable MCP package from a saved definition
+ */
+export const downloadComponentPackage = async (params: DownloadComponentPackageParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadComponentPackageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadComponentPackageQueryKey = (params?: DownloadComponentPackageParams,) => {
+    return [
+    `/api/component-packages`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadComponentPackageQueryOptions = <TData = Awaited<ReturnType<typeof downloadComponentPackage>>, TError = ErrorType<void>>(params: DownloadComponentPackageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadComponentPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadComponentPackageQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadComponentPackage>>> = ({ signal }) => downloadComponentPackage(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadComponentPackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadComponentPackageQueryResult = NonNullable<Awaited<ReturnType<typeof downloadComponentPackage>>>
+export type DownloadComponentPackageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Generate a runnable MCP package from a saved definition
+ */
+
+export function useDownloadComponentPackage<TData = Awaited<ReturnType<typeof downloadComponentPackage>>, TError = ErrorType<void>>(
+ params: DownloadComponentPackageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadComponentPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadComponentPackageQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRuntimesUrl = () => {
 

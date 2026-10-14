@@ -314,6 +314,20 @@ export const DeleteComponentResponse = zod.void()
 
 
 /**
+ * @summary Generate a runnable MCP package from a saved definition
+ */
+
+
+
+export const DownloadComponentPackageQueryParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "target": zod.enum(['cloudflare', 'openshell'])
+})
+
+export const DownloadComponentPackageResponse = zod.unknown()
+
+
+/**
  * @summary Get portable runtime adapter status
  */
 export const ListRuntimesResponseItem = zod.object({

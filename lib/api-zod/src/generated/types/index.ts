@@ -16,6 +16,8 @@ export * from './agentUpdate';
 export * from './agentUpdateInputSchema';
 export * from './agentUpdateRuntime';
 export * from './agentUpdateStatus';
+export * from './downloadComponentPackageParams';
+export * from './downloadComponentPackageTarget';
 export * from './healthStatus';
 export * from './knowledgeAnswer';
 export * from './knowledgeDocument';

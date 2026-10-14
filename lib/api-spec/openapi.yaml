@@ -248,6 +248,38 @@ paths:
           description: Deleted MCP component
         "404":
           description: Component not found
+  /component-packages:
+    get:
+      operationId: downloadComponentPackage
+      tags: [workspace]
+      summary: Generate a runnable MCP package from a saved definition
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: target
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [cloudflare, openshell]
+      responses:
+        "200":
+          description: Generated package archive
+          content:
+            application/gzip:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid package target or component ID
+        "404":
+          description: Component not found
+        "422":
+          description: Definition cannot be generated
   /runtimes:
     get:
       operationId: listRuntimes
