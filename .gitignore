@@ -55,3 +55,4 @@ vendor/cloudflare-os/.vite/
 vendor/cloudflare-os/**/src/generated/
 vendor/cloudflare-os/**/wrangler.dev.jsonc
 /generated-artifacts/
+vendor/cloudflare-os/**/.dev.vars*
