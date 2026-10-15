@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'wouter';
 import {
   Activity,
@@ -8,6 +9,7 @@ import {
   CircleHelp,
   Cpu,
   FileText,
+  Library,
   Gauge,
   Layers3,
   Plus,
@@ -21,6 +23,7 @@ export const navItems = [
   { href: '/knowledge', label: 'Knowledge', icon: BrainCircuit },
   { href: '/agents', label: 'Agents', icon: Sparkles },
   { href: '/mcp', label: 'MCP components', icon: Boxes },
+  { href: '/catalogue', label: 'Catalogue', icon: Library },
   { href: '/runtimes', label: 'Runtimes', icon: Cpu },
 ];
 
@@ -160,7 +163,7 @@ export function EmptyState({ title, detail, icon = FileText, action }: { title: 
 }
 
 export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div role="dialog" aria-modal="true" aria-label={title} className="max-h-[94dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-background p-5 shadow-2xl sm:max-w-2xl sm:rounded-2xl sm:p-7"><div className="mb-5 flex items-start justify-between gap-4"><div><div className="foundry-mono mb-1 text-[9px] uppercase tracking-[0.18em] text-primary">Workspace definition</div><h2 className="foundry-display text-2xl font-bold">{title}</h2></div><button aria-label="Close dialog" data-testid="button-close-dialog" onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted"><X size={17} /></button></div>{children}</div></div>;
+  return createPortal(<div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div role="dialog" aria-modal="true" aria-label={title} className="max-h-[94dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-background p-5 shadow-2xl sm:max-w-2xl sm:rounded-2xl sm:p-7"><div className="mb-5 flex items-start justify-between gap-4"><div><div className="foundry-mono mb-1 text-[9px] uppercase tracking-[0.18em] text-primary">Workspace definition</div><h2 className="foundry-display text-2xl font-bold">{title}</h2></div><button aria-label="Close dialog" data-testid="button-close-dialog" onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted"><X size={17} /></button></div>{children}</div></div>, document.body);
 }
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {

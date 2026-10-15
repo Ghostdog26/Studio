@@ -7,6 +7,20 @@ export default function RuntimesPage() {
   return (
     <>
       <PageHeading eyebrow="Execution adapters" title="Portability, made explicit." description="Agent Foundry standardizes definitions independently from where they run. Adapter readiness is not the same as a live provider connection." />
+      <Panel className="mb-6 p-5 md:p-6" data-testid="cloudflare-os-workspace">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <div className="foundry-mono mb-2 text-[9px] uppercase tracking-[0.15em] text-muted-foreground">Actual upstream source · Replit-hosted development workspace</div>
+            <h2 className="foundry-display text-2xl font-bold">Cloudflare OS</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Open the upstream agent workspace, gadgets, blueprints, and Gatekeepers running through Wrangler and workerd. This is separate from the provider execution adapters below.</p>
+          </div>
+          <a href="/cloudflare-os/" target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground" data-testid="open-cloudflare-os">Open Cloudflare OS <ArrowRight size={15} /></a>
+        </div>
+        <div className="mt-4 rounded-lg border border-amber-700/15 bg-amber-100/50 p-3 text-xs leading-relaxed text-amber-900">
+          Development preview only. Its accounts and storage are separate from Agent Foundry. Enterprise knowledge synchronization, approval enforcement, and production deployment are not connected yet. Model providers and external Gatekeepers require configuration.
+        </div>
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground"><strong className="text-foreground">Enterprise factory workflow:</strong> shared knowledge and standards → AI builds → validation → human approval → deployment of a fixed, versioned artifact. Runtime code is not regenerated per request; LLM outputs can still vary.</p>
+      </Panel>
       <Panel className="mb-6 overflow-hidden border-[#26343a] bg-[#26343a] text-[#f0f0e8]">
         <div className="grid gap-6 p-6 md:grid-cols-[1.2fr_0.8fr] md:p-8">
           <div><div className="foundry-mono mb-3 inline-flex items-center gap-2 rounded-full border border-[#90cdb0]/25 bg-[#90cdb0]/10 px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-[#a9dec3]"><ShieldCheck size={12} />Adapter boundary</div><h2 className="foundry-display max-w-lg text-3xl font-bold leading-tight md:text-4xl">Definitions travel.<br />Execution connects later.</h2><p className="mt-4 max-w-xl text-sm leading-relaxed text-[#c2ccc6]">The workspace can represent Cloudflare and NVIDIA targets. Both adapter layers are ready to integrate, but there is no live Cloudflare or NVIDIA execution connection configured through this workspace.</p></div>

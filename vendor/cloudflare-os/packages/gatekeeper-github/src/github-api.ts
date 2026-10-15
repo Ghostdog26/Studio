@@ -1,0 +1,1629 @@
+import { CredentialsExpiredError, isCredentialsExpired, type RefreshCredentials } from "@gadgets/gatekeeper-kit/credentials";
+import { validateBranchName } from "@gadgets/gatekeeper-kit/git-transport";
+import {
+  isInvalidGrant, mergeOAuthTokens, OAuthClient, oauthRefresh,
+} from "@gadgets/gatekeeper-kit/oauth-client";
+import type { UserAccount } from "./github";
+
+/**
+ * A GitHub OAuth grant. An expiring grant -- the default for OAuth apps registered since August
+ * 2026, opt-in before -- also carries `refreshToken` and `expiresAt`: its access token lasts eight
+ * hours, and each refresh rotates both tokens. A grant without them does not expire.
+ */
+export type GitHubOAuthGrant = {
+  accessToken: string;
+  scopes: string[];
+  refreshToken?: string;
+  /** Absolute access-token expiry, epoch milliseconds. */
+  expiresAt?: number;
+};
+
+export type GitHubSimpleUser = {
+  id: number;
+  login: string;
+  name?: string | null;
+  avatar_url: string;
+  html_url: string;
+};
+
+export type GitHubLabelResponse = {
+  name: string;
+  color?: string;
+  description?: string | null;
+};
+
+export type GitHubRepoResponse = {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  description?: string | null;
+  visibility?: "public" | "private" | "internal";
+  private?: boolean;
+  default_branch: string;
+  owner: GitHubSimpleUser;
+  /** The authenticated account's permissions on the repository. */
+  permissions?: { admin: boolean };
+};
+
+export type GitHubIssueResponse = {
+  number: number;
+  html_url: string;
+  title: string;
+  state: "open" | "closed";
+  state_reason?: "completed" | "not_planned" | "reopened" | null;
+  body?: string | null;
+  user: GitHubSimpleUser | null;
+  labels: GitHubLabelResponse[];
+  assignees?: GitHubSimpleUser[];
+  created_at: string;
+  updated_at: string;
+  closed_at?: string | null;
+  comments: number;
+  pull_request?: {
+    html_url?: string | null;
+    url?: string | null;
+  };
+};
+
+export type GitHubPullRequestBranchResponse = {
+  ref: string;
+  sha: string;
+  repo: GitHubRepoResponse | null;
+};
+
+export type GitHubPullRequestResponse = {
+  number: number;
+  html_url: string;
+  title: string;
+  state: "open" | "closed";
+  body?: string | null;
+  user: GitHubSimpleUser | null;
+  labels: GitHubLabelResponse[];
+  assignees?: GitHubSimpleUser[];
+  requested_reviewers?: GitHubSimpleUser[];
+  created_at: string;
+  updated_at: string;
+  closed_at?: string | null;
+  comments: number;
+  draft: boolean;
+  merged_at?: string | null;
+  mergeable?: boolean | null;
+  commits: number;
+  additions: number;
+  deletions: number;
+  changed_files: number;
+  head: GitHubPullRequestBranchResponse;
+  base: GitHubPullRequestBranchResponse;
+};
+
+export type GitHubIssueCommentResponse = {
+  id: number;
+  html_url: string;
+  body?: string | null;
+  user: GitHubSimpleUser | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GitHubPullRequestReviewResponse = {
+  id: number;
+  body?: string | null;
+  state: string;
+  html_url: string;
+  user: GitHubSimpleUser | null;
+  submitted_at?: string | null;
+  commit_id?: string | null;
+};
+
+export type GitHubPullRequestReviewCommentResponse = {
+  id: number;
+  pull_request_review_id?: number | null;
+  in_reply_to_id?: number;
+  html_url: string;
+  body?: string | null;
+  user: GitHubSimpleUser | null;
+  created_at: string;
+  updated_at: string;
+  path: string;
+  line?: number;
+  original_line?: number;
+  side?: "LEFT" | "RIGHT";
+  start_line?: number | null;
+  original_start_line?: number | null;
+  start_side?: "LEFT" | "RIGHT" | null;
+  subject_type?: "line" | "file";
+  position?: number | null;
+  original_position?: number | null;
+};
+
+export type GitHubPullFileResponse = {
+  sha?: string;
+  filename: string;
+  status: "added" | "modified" | "removed" | "renamed" | "copied" | "changed" | "unchanged";
+  previous_filename?: string;
+  additions: number;
+  deletions: number;
+  patch?: string;
+};
+
+export type GitHubBranchResponse = {
+  name: string;
+  commit: {
+    sha: string;
+  };
+  protected?: boolean;
+};
+
+export type GitHubTagResponse = {
+  name: string;
+  commit: {
+    sha: string;
+  };
+};
+
+/** A repository webhook as this gatekeeper configures one: JSON payloads, signed with `secret`. */
+export type GitHubRepoWebhookConfig = {
+  url: string;
+  secret: string;
+  events: readonly string[];
+};
+
+/** A repository webhook, as GitHub reports one (never with its secret). */
+export type GitHubRepoWebhookResponse = {
+  id: number;
+  active?: boolean;
+  events?: string[];
+  /** Where and how it delivers: `content_type` `"json"` or `"form"`; `insecure_ssl` `"0"` verifies TLS. */
+  config: { url?: string; content_type?: string; insecure_ssl?: string | number };
+};
+
+/** One attempt at a webhook delivery, as the webhook's delivery log lists it. */
+export type GitHubWebhookDeliveryResponse = {
+  id: number;
+  /** The delivery's `X-GitHub-Delivery` id, which every redelivery of it keeps. */
+  guid: string;
+  delivered_at: string;
+  /** The HTTP status the attempt was answered with. */
+  status_code: number;
+};
+
+function webhookBody({ url, secret, events }: GitHubRepoWebhookConfig) {
+  return { active: true, events, config: { url, secret, content_type: "json", insecure_ssl: "0" } };
+}
+
+/** Bounds one read of a webhook's delivery log, at 100 attempts a page. */
+const MAX_DELIVERY_PAGES = 10;
+/**
+ * Bounds one listing of a repository's webhooks, at 100 a page: far beyond the 20 per event that
+ * GitHub allows a repository, for any likely number of events.
+ */
+const MAX_WEBHOOK_PAGES = 20;
+
+/** The `cursor` of the page a `Link` header names as the next, if any. */
+function nextCursor(headers: Headers): string | undefined {
+  const next = headers.get("Link")?.split(",").find(link => /;\s*rel="next"/.test(link));
+  const url = next?.match(/<([^>]+)>/)?.[1];
+  return (url && URL.parse(url)?.searchParams.get("cursor")) || undefined;
+}
+
+/** A commit author/committer identity as recorded in the git commit object itself. */
+export type GitHubGitIdentityResponse = {
+  name?: string | null;
+  email?: string | null;
+  date?: string | null;
+};
+
+export type GitHubCommitResponse = {
+  sha: string;
+  html_url: string;
+  commit: {
+    message: string;
+    author?: GitHubGitIdentityResponse | null;
+    committer?: GitHubGitIdentityResponse | null;
+    tree?: {
+      sha: string;
+    };
+  };
+  author?: GitHubSimpleUser | null;
+  parents: Array<{
+    sha: string;
+  }>;
+  /** Present on single-commit lookups; omitted from list responses. */
+  stats?: {
+    additions: number;
+    deletions: number;
+    total: number;
+  };
+};
+
+export type GitHubCompareResponse = {
+  base_commit: {
+    sha: string;
+  };
+  /**
+   * The merge base of the two compared commits (what a three-dot compare diffs from). GitHub
+   * documents it as always present; it is optional here so a malformed response is handled
+   * explicitly (see `mergeBaseOfCompare` in github.ts) rather than crashing on a blind read.
+   */
+  merge_base_commit?: {
+    sha: string;
+  };
+  commits?: GitHubCommitResponse[];
+  total_commits: number;
+  files?: GitHubPullFileResponse[];
+};
+
+/** One entry of a git tree object, as the git-data trees API reports it. */
+export type GitHubGitTreeEntryResponse = {
+  path: string;
+  mode: string;
+  type: "blob" | "tree" | "commit";
+  sha: string;
+  size?: number;
+};
+
+export type GitHubGitTreeResponse = {
+  sha: string;
+  tree: GitHubGitTreeEntryResponse[];
+  truncated?: boolean;
+};
+
+type GitHubGitBlobResponse = {
+  sha: string;
+  size: number;
+  content: string;
+  encoding: string;
+};
+
+export class GitHubApiError extends Error {
+  status: number;
+  details?: unknown;
+  isAuthError: boolean;
+  /**
+   * Whether GitHub refused the request for a rate limit, primary or secondary, rather than for want
+   * of permission: with a 429, or a 403 that its rate-limit headers mark as one, or whose message
+   * does, as GitHub's docs say a secondary limit's may be told by alone.
+   */
+  rateLimited: boolean;
+
+  constructor(status: number, message: string, details?: unknown, headers?: Headers) {
+    super(message);
+    this.name = "GitHubApiError";
+    this.status = status;
+    this.details = details;
+    this.isAuthError = status === 401;
+    this.rateLimited = status === 429 || (status === 403 && (headers?.get("x-ratelimit-remaining") === "0" ||
+      headers?.has("retry-after") === true || /\bsecondary rate limit\b/i.test(message)));
+  }
+}
+
+type RequestOptions = {
+  query?: Record<string, string | number | boolean | undefined>;
+  body?: unknown;
+  auth?: "bearer" | "basic" | "none";
+  headers?: Record<string, string | undefined>;
+  okStatuses?: number[];
+  basicAuth?: {
+    username: string;
+    password: string;
+  };
+};
+
+/**
+ * A repository with its GitHub id, which survives renames and owner transfers. GitHub redirects
+ * a renamed repo's `/repos/<owner>/<name>/...` to `/repositories/<id>/...`, while a transferred
+ * issue redirects into another repository, so the id tells the two apart.
+ */
+export type PinnedRepo = { owner: string; repo: string; id: number };
+
+export type RequestResult<T> = {
+  data: T;
+  headers: Headers;
+  status: number;
+};
+
+export type ConditionalRequestResult<T> =
+  | { status: 304; headers: Headers }
+  | { status: 200; headers: Headers; data: T };
+
+export type ConditionalRequestOptions = {
+  ifNoneMatch?: string;
+};
+
+const API_BASE_URL = "https://api.github.com";
+const LOGIN_BASE_URL = "https://github.com";
+const API_VERSION = "2022-11-28";
+const DEFAULT_ACCEPT = "application/vnd.github+json";
+const USER_AGENT = "Cloudflare-Gadgets";
+const REQUEST_TIMEOUT_MS = 30_000;
+const GIT_UPLOAD_PACK_TIMEOUT_MS = 120_000;
+
+function encodeBasicAuth(username: string, password: string): string {
+  return btoa(`${username}:${password}`);
+}
+
+async function parseBody(response: Response): Promise<unknown> {
+  if (response.status === 204 || response.status === 304) {
+    return undefined;
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return await response.json();
+  }
+
+  return await response.text();
+}
+
+function isRedirect(status: number): boolean {
+  return status >= 300 && status < 400 && status !== 304;
+}
+
+const REPO_ROOT_PATH = /^\/repos\/[^/]+\/[^/]+$/;
+const REPO_ID_PATH = /^\/repositories\/\d+$/;
+
+/**
+ * The URL to re-issue a redirected request to, built rather than taken from `location`. Without
+ * `pin`, only a repository's root is followed, to `/repositories/<id>`: GitHub redirects a renamed
+ * or transferred repository there, and at the root the id can only be that same repository's.
+ * With it, a redirect is followed only to the same path under the pinned id, since beneath the
+ * root a transferred issue redirects into another repository.
+ */
+function redirectTarget(url: URL, location: string | null, pin: PinnedRepo | undefined): URL | undefined {
+  const moved = location === null ? null : URL.parse(location);
+  if (moved?.origin !== API_BASE_URL) return undefined;
+  if (!pin) {
+    return REPO_ROOT_PATH.test(url.pathname) && REPO_ID_PATH.test(moved.pathname)
+      ? new URL(`${moved.pathname}${url.search}`, API_BASE_URL) : undefined;
+  }
+  const prefix = `/repos/${encodeURIComponent(pin.owner)}/${encodeURIComponent(pin.repo)}`;
+  const suffix = url.pathname.slice(prefix.length);
+  if (!url.pathname.startsWith(prefix) || !(suffix === "" || suffix.startsWith("/"))) return undefined;
+  const target = new URL(`/repositories/${pin.id}${suffix}${url.search}`, API_BASE_URL);
+  return moved.pathname === target.pathname ? target : undefined;
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  options: RequestOptions = {},
+  getToken?: () => Promise<string>,
+  pin?: PinnedRepo,
+): Promise<RequestResult<T>> {
+  const url = new URL(path, API_BASE_URL);
+
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const headers = new Headers({
+    Accept: DEFAULT_ACCEPT,
+    "User-Agent": USER_AGENT,
+    "X-GitHub-Api-Version": API_VERSION,
+  });
+
+  for (const [key, value] of Object.entries(options.headers ?? {})) {
+    if (value !== undefined) {
+      headers.set(key, value);
+    }
+  }
+
+  const authMode = options.auth ?? "bearer";
+  if (authMode === "bearer") {
+    if (!getToken) {
+      throw new Error("Bearer auth requested without a token callback");
+    }
+    headers.set("Authorization", `Bearer ${await getToken()}`);
+  } else if (authMode === "basic") {
+    if (!options.basicAuth) {
+      throw new Error("Basic auth requested without credentials");
+    }
+    headers.set(
+      "Authorization",
+      `Basic ${encodeBasicAuth(options.basicAuth.username, options.basicAuth.password)}`,
+    );
+  }
+
+  let body: BodyInit | undefined;
+  if (options.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+    body = JSON.stringify(options.body);
+  }
+
+  const init: RequestInit = { method, headers, body, redirect: "manual" };
+  let response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  if (isRedirect(response.status)) {
+    const target = redirectTarget(url, response.headers.get("location"), pin);
+    if (target) {
+      response = await fetch(target, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    }
+    if (!target || isRedirect(response.status)) {
+      // The destination is withheld: it may name a repository the binding's observers cannot read.
+      throw new GitHubApiError(response.status,
+        `GitHub moved ${url.pathname} out of the bound repository; it was not followed.`);
+    }
+  }
+
+  if (!response.ok && !(options.okStatuses ?? []).includes(response.status)) {
+    const parsed = await parseBody(response);
+    let message = `${response.status} ${response.statusText}`;
+    if (typeof parsed === "string" && parsed.length > 0) {
+      message = parsed;
+    } else if (parsed && typeof parsed === "object") {
+      const errorMessage = (parsed as { message?: string; error?: string }).message
+        ?? (parsed as { message?: string; error?: string }).error;
+      if (errorMessage) {
+        message = errorMessage;
+      }
+    }
+    throw new GitHubApiError(response.status, message, parsed, response.headers);
+  }
+
+  const parsed = await parseBody(response);
+  return {
+    data: parsed as T,
+    headers: response.headers,
+    status: response.status,
+  };
+}
+
+function oauthClient(clientId: string, clientSecret: string): OAuthClient {
+  return new OAuthClient({
+    label: "GitHub",
+    client: { method: "post", id: clientId, secret: clientSecret },
+    tokenEndpoint: `${LOGIN_BASE_URL}/login/oauth/access_token`,
+    headers: { "User-Agent": USER_AGENT },
+    scopeSeparator: ",",
+    timeoutMs: REQUEST_TIMEOUT_MS,
+  });
+}
+
+export async function exchangeAuthCode(
+  code: string,
+  clientId: string,
+  clientSecret: string,
+  redirectUri: string,
+): Promise<GitHubOAuthGrant> {
+  const tokens = await oauthClient(clientId, clientSecret).exchangeCode({ code, redirectUri });
+  const grant: GitHubOAuthGrant = {
+    accessToken: tokens.accessToken,
+    scopes: tokens.scopes?.map(scope => scope.trim()).filter(Boolean) ?? [],
+  };
+  if (tokens.refreshToken !== undefined) grant.refreshToken = tokens.refreshToken;
+  if (tokens.expiresAt !== undefined) grant.expiresAt = tokens.expiresAt;
+  return grant;
+}
+
+/**
+ * Refreshes an expiring grant. The scopes are kept as stored, since GitHub never changes them on
+ * refresh. GitHub answers a refresh token that is expired, revoked, or already used with
+ * `bad_refresh_token` (in an HTTP 200), which proves the grant dead.
+ */
+export function refreshGitHubGrant(
+  clientId: string,
+  clientSecret: string,
+  expiredMessage: string,
+): RefreshCredentials<GitHubOAuthGrant> {
+  return oauthRefresh<GitHubOAuthGrant>(oauthClient(clientId, clientSecret), {
+    refreshToken: grant => grant.refreshToken,
+    merge: (grant, tokens) => ({ ...mergeOAuthTokens(grant, tokens), scopes: grant.scopes }),
+    isGrantDeath: error => isInvalidGrant(error)
+      || (error.oauthError === "bad_refresh_token" && error.httpStatus < 500),
+    expiredMessage,
+  });
+}
+
+/**
+ * Revokes one OAuth token, and only that token. The neighbouring `/applications/{id}/grant`
+ * endpoint revokes every token the user holds for this OAuth app at once, which took a working
+ * connection down whenever a duplicate or an abandoned pending connect for the same user was
+ * revoked; a user may legitimately hold several tokens (one per connected account, plus the
+ * transient sign-in grant).
+ */
+export async function revokeOAuthToken(
+  accessToken: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<void> {
+  await request<void>(
+    "DELETE",
+    `/applications/${encodeURIComponent(clientId)}/token`,
+    {
+      auth: "basic",
+      basicAuth: {
+        username: clientId,
+        password: clientSecret,
+      },
+      body: {
+        access_token: accessToken,
+      },
+    },
+  );
+}
+
+/**
+ * GitHub's REST API as one account. Redirects are followed only within `repo`, by its id (see
+ * PinnedRepo); without it, only a repository root's redirect to its id is (see redirectTarget),
+ * and every other redirect fails with a GitHubApiError.
+ */
+export class GitHubApi {
+  #getToken: () => Promise<string>;
+  #repo?: PinnedRepo;
+
+  constructor(getToken: () => Promise<string>, options: { repo?: PinnedRepo } = {}) {
+    this.#getToken = getToken;
+    this.#repo = options.repo;
+  }
+
+  async #request<T>(
+    method: string,
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<RequestResult<T>> {
+    return await request<T>(method, path, options, this.#getToken, this.#repo);
+  }
+
+  async #conditionalGet<T>(
+    path: string,
+    query: Record<string, string | number | boolean | undefined> | undefined,
+    options: ConditionalRequestOptions = {},
+    accept?: string,
+  ): Promise<ConditionalRequestResult<T>> {
+    const result = await this.#request<T>("GET", path, {
+      query,
+      headers: {
+        ...(options.ifNoneMatch ? { "If-None-Match": options.ifNoneMatch } : undefined),
+        ...(accept ? { Accept: accept } : undefined),
+      },
+      okStatuses: [304],
+    });
+    if (result.status === 304) {
+      return {
+        status: 304,
+        headers: result.headers,
+      };
+    }
+
+    return {
+      status: 200,
+      headers: result.headers,
+      data: result.data,
+    };
+  }
+
+  async getViewer(): Promise<{ user: GitHubSimpleUser; scopes: string[] }> {
+    const result = await this.getViewerConditional();
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional viewer request.");
+    }
+    const user = result.data;
+    const scopes = result.headers
+      .get("x-oauth-scopes")
+      ?.split(",")
+      .map((scope: string) => scope.trim())
+      .filter(Boolean) ?? [];
+
+    return {
+      user,
+      scopes,
+    };
+  }
+
+  async getViewerConditional(
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubSimpleUser>> {
+    return await this.#conditionalGet<GitHubSimpleUser>("/user", undefined, options);
+  }
+
+  /**
+   * Returns the account's primary, verified email (for use as a sign-in identity), or null if the
+   * account has no verified email. Requires the `user:email` scope.
+   */
+  async getPrimaryVerifiedEmail(): Promise<string | null> {
+    const result = await this.#request<Array<{
+      email: string; primary: boolean; verified: boolean;
+    }>>("GET", "/user/emails", {});
+    const emails = result.data ?? [];
+    const primary = emails.find(e => e.primary && e.verified);
+    const verified = primary ?? emails.find(e => e.verified);
+    return verified?.email ?? null;
+  }
+
+  async getRepo(owner: string, repo: string): Promise<GitHubRepoResponse> {
+    const result = await this.getRepoConditional(owner, repo);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional repo request.");
+    }
+    return result.data;
+  }
+
+  async getRepoConditional(
+    owner: string,
+    repo: string,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubRepoResponse>> {
+    return await this.#conditionalGet<GitHubRepoResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+      undefined,
+      options,
+    );
+  }
+
+  /**
+   * The repository with GitHub id `id`, whatever it is named now. `/repositories/<id>` is where
+   * GitHub redirects a renamed repository's old path.
+   */
+  async getRepoByIdConditional(
+    id: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubRepoResponse>> {
+    return await this.#conditionalGet<GitHubRepoResponse>(`/repositories/${id}`, undefined, options);
+  }
+
+  async listRepos(options: {
+    affiliation?: string;
+    sort?: string;
+    direction?: string;
+    per_page: number;
+    page: number;
+  }): Promise<GitHubRepoResponse[]> {
+    const result = await this.#request<GitHubRepoResponse[]>("GET", "/user/repos", { query: options });
+    return result.data;
+  }
+
+  /**
+   * GitHub's `/search/repositories` endpoint. Use this when the user has typed a query so we
+   * only fetch the matching repos rather than enumerating their entire affiliation list. The
+   * query string follows GitHub's search-syntax (e.g. "react user:jonesphillip in:name").
+   */
+  async searchRepos(options: {
+    q: string;
+    per_page: number;
+    page: number;
+    sort?: "stars" | "forks" | "help-wanted-issues" | "updated";
+    order?: "asc" | "desc";
+  }): Promise<GitHubRepoResponse[]> {
+    const result = await this.#request<{ items: GitHubRepoResponse[] }>("GET", "/search/repositories", { query: options });
+    return result.data.items;
+  }
+
+  // A repository's webhooks are addressed by its id, as `/repositories/<id>` is where GitHub
+  // redirects a renamed repository's old path: a name a rename freed can name another repository.
+
+  /** The repository's webhooks, every page of them. GitHub answers only a repository admin. */
+  async listRepoWebhooks(repoId: number): Promise<GitHubRepoWebhookResponse[]> {
+    const webhooks: GitHubRepoWebhookResponse[] = [];
+    // A short page is the last.
+    for (let page = 1; page <= MAX_WEBHOOK_PAGES; page++) {
+      const { data } = await this.#request<GitHubRepoWebhookResponse[]>(
+        "GET", `/repositories/${repoId}/hooks`, { query: { per_page: 100, page } });
+      webhooks.push(...data);
+      if (data.length < 100) return webhooks;
+    }
+    throw new Error(`Repository ${repoId} has more webhooks than can be listed.`);
+  }
+
+  /** Adds an active webhook to the repository. GitHub allows only a repository admin to. */
+  async createRepoWebhook(repoId: number, webhook: GitHubRepoWebhookConfig): Promise<GitHubRepoWebhookResponse> {
+    return (await this.#request<GitHubRepoWebhookResponse>(
+      "POST", `/repositories/${repoId}/hooks`, { body: { name: "web", ...webhookBody(webhook) } },
+    )).data;
+  }
+
+  /** Makes an existing webhook active, with exactly `webhook`'s URL, secret and events. */
+  async updateRepoWebhook(
+    repoId: number, hookId: number, webhook: GitHubRepoWebhookConfig,
+  ): Promise<GitHubRepoWebhookResponse> {
+    return (await this.#request<GitHubRepoWebhookResponse>(
+      "PATCH", `/repositories/${repoId}/hooks/${hookId}`, { body: webhookBody(webhook) },
+    )).data;
+  }
+
+  /** A repository webhook, which GitHub shows only to a repository admin. */
+  async getRepoWebhook(repoId: number, hookId: number): Promise<GitHubRepoWebhookResponse> {
+    return (await this.#request<GitHubRepoWebhookResponse>("GET", `/repositories/${repoId}/hooks/${hookId}`)).data;
+  }
+
+  /**
+   * A webhook's delivery attempts since `since` (in ms since the epoch), newest first, as GitHub
+   * lists them. GitHub keeps three days of them.
+   */
+  async listRepoWebhookDeliveries(repoId: number, hookId: number, since: number): Promise<GitHubWebhookDeliveryResponse[]> {
+    const path = `/repositories/${repoId}/hooks/${hookId}/deliveries`;
+    const deliveries: GitHubWebhookDeliveryResponse[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_DELIVERY_PAGES; page++) {
+      const { data, headers } = await this.#request<GitHubWebhookDeliveryResponse[]>(
+        "GET", path, { query: { per_page: 100, cursor } });
+      const recent = data.filter(delivery => Date.parse(delivery.delivered_at) >= since);
+      deliveries.push(...recent);
+      cursor = nextCursor(headers);
+      if (cursor === undefined || recent.length < data.length) break;
+    }
+    return deliveries;
+  }
+
+  /** Asks GitHub to make a webhook delivery again, which it does in its own time. */
+  async redeliverRepoWebhookDelivery(repoId: number, hookId: number, deliveryId: number): Promise<void> {
+    await this.#request<void>("POST", `/repositories/${repoId}/hooks/${hookId}/deliveries/${deliveryId}/attempts`);
+  }
+
+  /**
+   * Deletes a webhook. A 404 is not an error, though it means either that the webhook is gone or
+   * that the account may no longer manage it: GitHub answers a non-admin the same.
+   */
+  async deleteRepoWebhook(repoId: number, hookId: number): Promise<void> {
+    await this.#request<void>("DELETE", `/repositories/${repoId}/hooks/${hookId}`, { okStatuses: [404] });
+  }
+
+  async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssueResponse> {
+    const result = await this.getIssueConditional(owner, repo, issueNumber);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional issue request.");
+    }
+    return result.data;
+  }
+
+  async getIssueConditional(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubIssueResponse>> {
+    return await this.#conditionalGet<GitHubIssueResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}`,
+      undefined,
+      options,
+    );
+  }
+
+  async getPullRequest(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+  ): Promise<GitHubPullRequestResponse> {
+    const result = await this.getPullRequestConditional(owner, repo, pullNumber);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional pull request request.");
+    }
+    return result.data;
+  }
+
+  async getPullRequestConditional(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubPullRequestResponse>> {
+    return await this.#conditionalGet<GitHubPullRequestResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}`,
+      undefined,
+      options,
+    );
+  }
+
+  async listIssues(
+    owner: string,
+    repo: string,
+    options: {
+      state?: string;
+      labels?: string;
+      creator?: string;
+      assignee?: string;
+      sort?: string;
+      direction?: string;
+      per_page: number;
+      page: number;
+    },
+  ): Promise<GitHubIssueResponse[]> {
+    const result = await this.listIssuesConditional(owner, repo, options);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional issue list request.");
+    }
+    return result.data;
+  }
+
+  async listIssuesConditional(
+    owner: string,
+    repo: string,
+    query: {
+      state?: string;
+      labels?: string;
+      creator?: string;
+      assignee?: string;
+      sort?: string;
+      direction?: string;
+      per_page: number;
+      page: number;
+    },
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubIssueResponse[]>> {
+    return await this.#conditionalGet<GitHubIssueResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues`,
+      query,
+      options,
+    );
+  }
+
+  async searchIssues(
+    query: string,
+    page: number,
+    perPage: number,
+    sort?: string,
+    order?: string,
+  ): Promise<GitHubIssueResponse[]> {
+    const result = await this.searchIssuesConditional(query, page, perPage, sort, order);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional issue search request.");
+    }
+    return result.data.items;
+  }
+
+  async searchIssuesConditional(
+    query: string,
+    page: number,
+    perPage: number,
+    sort?: string,
+    order?: string,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<{ items: GitHubIssueResponse[] }>> {
+    return await this.#conditionalGet<{ items: GitHubIssueResponse[] }>(
+      "/search/issues",
+      {
+        q: query,
+        advanced_search: true,
+        page,
+        per_page: perPage,
+        sort,
+        order,
+      },
+      options,
+    );
+  }
+
+  async listPullRequests(
+    owner: string,
+    repo: string,
+    options: {
+      state?: string;
+      head?: string;
+      base?: string;
+      sort?: string;
+      direction?: string;
+      per_page: number;
+      page: number;
+    },
+  ): Promise<GitHubPullRequestResponse[]> {
+    const result = await this.listPullRequestsConditional(owner, repo, options);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional pull request list request.");
+    }
+    return result.data;
+  }
+
+  async listPullRequestsConditional(
+    owner: string,
+    repo: string,
+    query: {
+      state?: string;
+      head?: string;
+      base?: string;
+      sort?: string;
+      direction?: string;
+      per_page: number;
+      page: number;
+    },
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubPullRequestResponse[]>> {
+    return await this.#conditionalGet<GitHubPullRequestResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`,
+      query,
+      options,
+    );
+  }
+
+  async listIssueComments(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    page: number,
+    perPage: number,
+    since?: string,
+  ): Promise<GitHubIssueCommentResponse[]> {
+    return (await this.#request<GitHubIssueCommentResponse[]>(
+      "GET",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`,
+      {
+        query: {
+          page,
+          per_page: perPage,
+          since,
+        },
+      },
+    )).data;
+  }
+
+  async createIssue(
+    owner: string,
+    repo: string,
+    options: {
+      title: string;
+      body?: string;
+      labels?: string[];
+      assignees?: string[];
+    },
+  ): Promise<GitHubIssueResponse> {
+    return (await this.#request<GitHubIssueResponse>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues`,
+      { body: options },
+    )).data;
+  }
+
+  async createPullRequest(
+    owner: string,
+    repo: string,
+    options: {
+      title: string;
+      body?: string;
+      head: string;
+      base: string;
+      draft?: boolean;
+    },
+  ): Promise<GitHubPullRequestResponse> {
+    return (await this.#request<GitHubPullRequestResponse>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`,
+      { body: options },
+    )).data;
+  }
+
+  async updateIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    patch: {
+      title?: string;
+      body?: string;
+      state?: "open" | "closed";
+      state_reason?: "completed" | "not_planned" | null;
+    },
+  ): Promise<GitHubIssueResponse> {
+    return (await this.#request<GitHubIssueResponse>(
+      "PATCH",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}`,
+      { body: patch },
+    )).data;
+  }
+
+  async addLabels(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    labels: string[],
+  ): Promise<GitHubLabelResponse[]> {
+    return (await this.#request<GitHubLabelResponse[]>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/labels`,
+      {
+        body: { labels },
+      },
+    )).data;
+  }
+
+  async removeLabel(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    label: string,
+  ): Promise<void> {
+    await this.#request<void>(
+      "DELETE",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`,
+    );
+  }
+
+  async setLabels(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    labels: string[],
+  ): Promise<GitHubLabelResponse[]> {
+    return (await this.#request<GitHubLabelResponse[]>(
+      "PUT",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/labels`,
+      {
+        body: { labels },
+      },
+    )).data;
+  }
+
+  async createIssueComment(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ): Promise<GitHubIssueCommentResponse> {
+    return (await this.#request<GitHubIssueCommentResponse>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`,
+      {
+        body: { body },
+      },
+    )).data;
+  }
+
+  async updateIssueComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+    body: string,
+  ): Promise<GitHubIssueCommentResponse> {
+    return (await this.#request<GitHubIssueCommentResponse>(
+      "PATCH",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/comments/${commentId}`,
+      {
+        body: { body },
+      },
+    )).data;
+  }
+
+  async deleteIssueComment(owner: string, repo: string, commentId: number): Promise<void> {
+    await this.#request<void>(
+      "DELETE",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/comments/${commentId}`,
+    );
+  }
+
+  async listPullRequestReviews(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+  ): Promise<GitHubPullRequestReviewResponse[]> {
+    const result = await this.listPullRequestReviewsConditional(owner, repo, pullNumber, page, perPage);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional pull request review list request.");
+    }
+    return result.data;
+  }
+
+  async listPullRequestReviewsConditional(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubPullRequestReviewResponse[]>> {
+    return await this.#conditionalGet<GitHubPullRequestReviewResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/reviews`,
+      {
+        page,
+        per_page: perPage,
+      },
+      options,
+    );
+  }
+
+  async listPullRequestReviewComments(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+    since?: string,
+  ): Promise<GitHubPullRequestReviewCommentResponse[]> {
+    return (await this.#request<GitHubPullRequestReviewCommentResponse[]>(
+      "GET",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/comments`,
+      {
+        query: {
+          page,
+          per_page: perPage,
+          since,
+        },
+      },
+    )).data;
+  }
+
+  async getPullRequestReviewComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+  ): Promise<GitHubPullRequestReviewCommentResponse> {
+    const result = await this.getPullRequestReviewCommentConditional(owner, repo, commentId);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional review comment request.");
+    }
+    return result.data;
+  }
+
+  async getPullRequestReviewCommentConditional(
+    owner: string,
+    repo: string,
+    commentId: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubPullRequestReviewCommentResponse>> {
+    return await this.#conditionalGet<GitHubPullRequestReviewCommentResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/comments/${commentId}`,
+      undefined,
+      options,
+    );
+  }
+
+  async createPullRequestReview(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    body: {
+      commit_id: string;
+      body?: string;
+      event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+      comments?: Array<{
+        path: string;
+        body: string;
+        side?: "LEFT" | "RIGHT";
+        line?: number;
+        start_line?: number;
+        start_side?: "LEFT" | "RIGHT";
+        subject_type?: "line" | "file";
+      }>;
+    },
+  ): Promise<GitHubPullRequestReviewResponse> {
+    return (await this.#request<GitHubPullRequestReviewResponse>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/reviews`,
+      {
+        body,
+      },
+    )).data;
+  }
+
+  async updatePullRequestReview(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    reviewId: number,
+    body: string,
+  ): Promise<GitHubPullRequestReviewResponse> {
+    return (await this.#request<GitHubPullRequestReviewResponse>(
+      "PUT",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/reviews/${reviewId}`,
+      {
+        body: { body },
+      },
+    )).data;
+  }
+
+  async replyToPullRequestReviewComment(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    commentId: number,
+    body: string,
+  ): Promise<GitHubPullRequestReviewCommentResponse> {
+    return (await this.#request<GitHubPullRequestReviewCommentResponse>(
+      "POST",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/comments/${commentId}/replies`,
+      {
+        body: { body },
+      },
+    )).data;
+  }
+
+  async updatePullRequestReviewComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+    body: string,
+  ): Promise<GitHubPullRequestReviewCommentResponse> {
+    return (await this.#request<GitHubPullRequestReviewCommentResponse>(
+      "PATCH",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/comments/${commentId}`,
+      {
+        body: { body },
+      },
+    )).data;
+  }
+
+  async deletePullRequestReviewComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+  ): Promise<void> {
+    await this.#request<void>(
+      "DELETE",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/comments/${commentId}`,
+    );
+  }
+
+  async listPullRequestFiles(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+  ): Promise<GitHubPullFileResponse[]> {
+    const result = await this.listPullRequestFilesConditional(owner, repo, pullNumber, page, perPage);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional pull request files request.");
+    }
+    return result.data;
+  }
+
+  async listPullRequestFilesConditional(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubPullFileResponse[]>> {
+    return await this.#conditionalGet<GitHubPullFileResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/files`,
+      {
+        page,
+        per_page: perPage,
+      },
+      options,
+    );
+  }
+
+  async mergePullRequest(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    options: {
+      merge_method?: "merge" | "squash" | "rebase";
+      commit_title?: string;
+      commit_message?: string;
+      sha?: string;
+    },
+  ): Promise<{ sha: string; merged: boolean; message: string }> {
+    return (await this.#request<{ sha: string; merged: boolean; message: string }>(
+      "PUT",
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/merge`,
+      {
+        body: options,
+      },
+    )).data;
+  }
+
+  /**
+   * `paging` pages the compare's commit listing. Callers that only want the comparison's
+   * metadata (e.g. its `merge_base_commit`) should pass `{ perPage: 1, page: 2 }`: GitHub puts
+   * the full changed-files array -- up to 300 entries, patches included -- on the *first* page
+   * of a compare regardless of `per_page`, while every page carries the static metadata.
+   */
+  async compareBranches(
+    owner: string,
+    repo: string,
+    base: string,
+    head: string,
+    paging?: { perPage: number; page: number },
+  ): Promise<GitHubCompareResponse> {
+    const result = await this.compareBranchesConditional(owner, repo, base, head, {}, paging);
+    if (result.status === 304) {
+      throw new Error("GitHub unexpectedly returned 304 for an unconditional branch compare request.");
+    }
+    return result.data;
+  }
+
+  async compareBranchesConditional(
+    owner: string,
+    repo: string,
+    base: string,
+    head: string,
+    options: ConditionalRequestOptions = {},
+    paging?: { perPage: number; page: number },
+  ): Promise<ConditionalRequestResult<GitHubCompareResponse>> {
+    return await this.#conditionalGet<GitHubCompareResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/compare/${encodeURIComponent(`${base}...${head}`)}`,
+      paging === undefined ? undefined : { per_page: paging.perPage, page: paging.page },
+      options,
+    );
+  }
+
+  async listBranchesConditional(
+    owner: string,
+    repo: string,
+    query: {
+      protected?: boolean;
+      per_page: number;
+      page: number;
+    },
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubBranchResponse[]>> {
+    return await this.#conditionalGet<GitHubBranchResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`,
+      query,
+      options,
+    );
+  }
+
+  /**
+   * Look up a single branch's current head commit sha, or null if the branch does not exist.
+   * Always an unconditional, uncached read: callers use this to bind a push's expected old head,
+   * which must reflect the remote's live state. Read as the exact git ref, because
+   * `/branches/<name>` redirects a renamed branch's old name to the new one (as `master` does in
+   * many repositories), and git has no such alias. The name is validated first: it is encoded
+   * segment by segment, so a `..` segment would otherwise climb out of the repository.
+   */
+  async getBranchHead(owner: string, repo: string, branch: string): Promise<string | null> {
+    try {
+      const result = await this.#request<{ object: { sha: string } }>(
+        "GET",
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${
+          validateBranchName(branch).split("/").map(encodeURIComponent).join("/")}`,
+      );
+      return result.data.object.sha;
+    } catch (error) {
+      // 409 is GitHub's answer for an empty repository, which has no branches at all.
+      if (error instanceof GitHubApiError && (error.status === 404 || error.status === 409)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async listTagsConditional(
+    owner: string,
+    repo: string,
+    query: {
+      per_page: number;
+      page: number;
+    },
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubTagResponse[]>> {
+    return await this.#conditionalGet<GitHubTagResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags`,
+      query,
+      options,
+    );
+  }
+
+  /**
+   * Look up a single commit. `ref` may be a full or truncated commit SHA, a branch name, or a tag
+   * name; GitHub resolves truncated SHAs natively (404 if unknown or ambiguous).
+   */
+  async getCommitConditional(
+    owner: string,
+    repo: string,
+    ref: string,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubCommitResponse>> {
+    return await this.#conditionalGet<GitHubCommitResponse>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(ref)}`,
+      undefined,
+      options,
+    );
+  }
+
+  /**
+   * Resolve a ref to its commit sha only, via the same endpoint as `getCommitConditional` but
+   * with GitHub's `sha` media type, so the response is the bare sha instead of the full commit
+   * with its whole diff. Same ref grammar: full or truncated commit SHA, branch name, or tag
+   * name (404 if unknown or ambiguous).
+   */
+  async getCommitShaConditional(
+    owner: string,
+    repo: string,
+    ref: string,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<string>> {
+    return await this.#conditionalGet<string>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(ref)}`,
+      undefined,
+      options,
+      "application/vnd.github.sha",
+    );
+  }
+
+  /**
+   * One level of a git tree object via the git-data API, or null if the tree is unknown to
+   * GitHub. Used to enumerate the on-remote side of a simulated pull request diff when the tree
+   * object is not in the workspace git cache.
+   */
+  async getGitTree(owner: string, repo: string, sha: string): Promise<GitHubGitTreeResponse | null> {
+    try {
+      return (await this.#request<GitHubGitTreeResponse>(
+        "GET",
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(sha)}`,
+      )).data;
+    } catch (error) {
+      if (error instanceof GitHubApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * A blob's raw bytes via the git-data API. Returns null if the blob is unknown to GitHub, and
+   * `"oversized"` when its size exceeds `maxBytes` (the content is then never downloaded) or the
+   * response is not base64 (GitHub's signal that the blob is too large to inline).
+   */
+  async getGitBlob(
+    owner: string,
+    repo: string,
+    sha: string,
+    maxBytes: number,
+  ): Promise<Uint8Array | "oversized" | null> {
+    let response: GitHubGitBlobResponse;
+    try {
+      response = (await this.#request<GitHubGitBlobResponse>(
+        "GET",
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs/${encodeURIComponent(sha)}`,
+      )).data;
+    } catch (error) {
+      if (error instanceof GitHubApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+    if (response.size > maxBytes || response.encoding !== "base64") {
+      return "oversized";
+    }
+    return Uint8Array.from(atob(response.content.replace(/\s+/g, "")), char => char.charCodeAt(0));
+  }
+
+  async listCommitsConditional(
+    owner: string,
+    repo: string,
+    query: {
+      /** Branch name, tag name, or commit SHA to start listing from. */
+      sha?: string;
+      path?: string;
+      author?: string;
+      since?: string;
+      until?: string;
+      per_page: number;
+      page: number;
+    },
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubCommitResponse[]>> {
+    return await this.#conditionalGet<GitHubCommitResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits`,
+      query,
+      options,
+    );
+  }
+
+  async listPullRequestCommitsConditional(
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    page: number,
+    perPage: number,
+    options: ConditionalRequestOptions = {},
+  ): Promise<ConditionalRequestResult<GitHubCommitResponse[]>> {
+    return await this.#conditionalGet<GitHubCommitResponse[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${pullNumber}/commits`,
+      {
+        page,
+        per_page: perPage,
+      },
+      options,
+    );
+  }
+
+  /**
+   * POST a git smart-HTTP protocol v2 `upload-pack` request (the git fetch endpoint, on
+   * github.com rather than api.github.com) and return the raw `Response`, whose body the caller
+   * streams -- see `@gadgets/gatekeeper-kit/git-transport`. Auth is Basic with the `x-access-token` username GitHub
+   * specifies for token-authenticated git operations. Throws `GitHubApiError` on a non-OK
+   * status (401 marks it an auth error, like every other method here), so callers get the same
+   * credential-expiry handling as REST calls.
+   */
+  async fetchGitUploadPack(owner: string, repo: string, requestBody: Uint8Array): Promise<Response> {
+    const url = `${LOGIN_BASE_URL}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}.git/git-upload-pack`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-git-upload-pack-request",
+        Accept: "application/x-git-upload-pack-result",
+        "Git-Protocol": "version=2",
+        "User-Agent": USER_AGENT,
+        Authorization: `Basic ${encodeBasicAuth("x-access-token", await this.#getToken())}`,
+      },
+      body: requestBody,
+      // GitHub serves a renamed repo over smart-HTTP without redirecting, so any redirect is
+      // refused (as a non-OK status) rather than followed somewhere unbound.
+      redirect: "manual",
+      // Longer than REQUEST_TIMEOUT_MS: the signal also covers streaming the response body,
+      // which may be a pack of tens of megabytes.
+      signal: AbortSignal.timeout(GIT_UPLOAD_PACK_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      // The error body is short prose (e.g. "Repository not found"); a truncated copy makes the
+      // failure actionable without trusting its size.
+      const detail = (await response.text().catch(() => "")).trim().slice(0, 200);
+      throw new GitHubApiError(
+        response.status,
+        `git fetch failed: ${response.status} ${response.statusText}${detail ? `: ${detail}` : ""}`,
+      );
+    }
+    return response;
+  }
+
+  /**
+   * POST a git smart-HTTP `receive-pack` request (the git push endpoint; classic protocol -- there
+   * is no v2 for receive-pack) and return the raw `Response`, whose report-status body the caller
+   * parses -- see `@gadgets/gatekeeper-kit/git-transport`. The request body streams (the pack may be large), so it is
+   * sent chunked. Auth and error handling mirror `fetchGitUploadPack`.
+   */
+  async fetchGitReceivePack(
+    owner: string, repo: string, requestBody: ReadableStream<Uint8Array>,
+  ): Promise<Response> {
+    const url = `${LOGIN_BASE_URL}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}.git/git-receive-pack`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-git-receive-pack-request",
+        Accept: "application/x-git-receive-pack-result",
+        "User-Agent": USER_AGENT,
+        Authorization: `Basic ${encodeBasicAuth("x-access-token", await this.#getToken())}`,
+      },
+      body: requestBody,
+      redirect: "manual",
+      // Same generous budget as fetch: the signal also covers streaming the pack up.
+      signal: AbortSignal.timeout(GIT_UPLOAD_PACK_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => "")).trim().slice(0, 200);
+      throw new GitHubApiError(
+        response.status,
+        `git push failed: ${response.status} ${response.statusText}${detail ? `: ${detail}` : ""}`,
+      );
+    }
+    return response;
+  }
+}
+
+export const CREDENTIALS_EXPIRED_MESSAGE =
+  "GitHub credentials have expired or been revoked. Please reconnect the account.";
+
+/**
+ * Runs `fn` against GitHub as `account`, following redirects only within `repo` (see GitHubApi).
+ * GitHub's rejection of the token a request presented is the account's to adjudicate, so a token
+ * replaced while the request was in flight fails as retryable rather than marking the account
+ * expired. With `replayable`, which only calls safe to run twice may pass, such a failure instead
+ * reruns `fn` once with the replacement token.
+ */
+export async function withAccountApi<T>(
+  account: DurableObjectStub<UserAccount>, fn: (api: GitHubApi) => Promise<T>,
+  options: { replayable?: true; repo?: PinnedRepo } = {},
+): Promise<T> {
+  for (let replays = options.replayable ? 1 : 0; ; replays--) {
+    let presented: string | undefined;
+    const api = new GitHubApi(async () => (presented = await account.getAccessToken()),
+      { repo: options.repo });
+    try {
+      return await fn(api);
+    } catch (error) {
+      if (isCredentialsExpired(error)) {
+        throw new Error(CREDENTIALS_EXPIRED_MESSAGE, { cause: error });
+      }
+      if (!(error instanceof GitHubApiError && error.isAuthError) || presented === undefined) {
+        throw error;
+      }
+      const verdict = await account.reportTokenRejected(presented);
+      if (verdict === "expired") {
+        // Shaped like the known expiry above: the marked error as its cause is how callers tell an
+        // expiry from a token renewed mid-request.
+        // oxlint-disable-next-line eslint/preserve-caught-error -- kept as the marked error's cause.
+        throw new Error(CREDENTIALS_EXPIRED_MESSAGE,
+          { cause: new CredentialsExpiredError(CREDENTIALS_EXPIRED_MESSAGE, { cause: error }) });
+      }
+      if (verdict !== "superseded") throw error;
+      if (replays > 0) continue;
+      throw new Error("GitHub credentials were renewed during this request. Please retry it.",
+        { cause: error });
+    }
+  }
+}

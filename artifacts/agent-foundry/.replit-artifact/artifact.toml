@@ -26,3 +26,15 @@ to = "/index.html"
 [services.env]
 PORT = "19602"
 BASE_PATH = "/"
+
+[[services]]
+name = "Cloudflare OS"
+paths = ["/cloudflare-os", "/cloudflare-os/api"]
+localPort = 19603
+
+[services.development]
+run = "pnpm --filter @workspace/scripts run cloudflare-os:serve"
+
+[services.env]
+PORT = "19603"
+BASE_PATH = "/cloudflare-os/"

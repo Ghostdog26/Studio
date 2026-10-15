@@ -50,3 +50,20 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+
+## Cloudflare OS preview
+
+- Actual upstream Apache-2.0 source: `vendor/cloudflare-os`, kept as its own dependency workspace.
+- Provenance: `scripts/cloudflare-os/source.json`.
+- Prepare: `pnpm --filter @workspace/scripts run cloudflare-os:prepare`.
+- Managed service: `artifacts/agent-foundry: Cloudflare OS`, preview path `/cloudflare-os/`, readiness `/cloudflare-os/healthz`.
+- This service runs upstream's **development** Wrangler/workerd stack, not Docker and not a production self-hosted deployment.
+- Its accounts and local Durable Object storage are separate from Agent Foundry's PostgreSQL data. It does not make the Cloudflare execution adapter connected.
+- See `docs/cloudflare-os-replit.md` for hosting limitations and `docs/enterprise-factory.md` for the intended knowledge → generation → human approval → fixed-release workflow.
+
+## MCP reference catalogue
+
+- `/catalogue` provides a searchable, paginated community server directory with linked wiki entries and deterministic AI builder briefs.
+- Source provenance: `artifacts/api-server/mcp-catalogue-source.json`; MIT attribution: `docs/third-party/awesome-mcp-servers-LICENSE.txt`.
+- Import: `pnpm --filter @workspace/api-server run catalogue:import`; parser checks: `pnpm --filter @workspace/api-server run catalogue:test`.
+- Import is metadata only, not installation or approval. See `docs/mcp-catalogue.md` for repeat-import behavior and trust boundaries.

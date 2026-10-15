@@ -5,6 +5,60 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+export type McpCatalogueEntryReviewStatus = typeof McpCatalogueEntryReviewStatus[keyof typeof McpCatalogueEntryReviewStatus];
+
+
+export const McpCatalogueEntryReviewStatus = {
+  unreviewed: 'unreviewed',
+} as const;
+
+export interface McpCatalogueEntry {
+  id: number;
+  name: string;
+  url: string;
+  description: string;
+  categories: string[];
+  languages: string[];
+  scopes: string[];
+  platforms: string[];
+  officialListed: boolean;
+  reviewStatus: McpCatalogueEntryReviewStatus;
+  /** @nullable */
+  knowledgeId: number | null;
+  sourceRevision: string;
+  importedAt: string;
+}
+
+export interface McpCatalogueFacet {
+  name: string;
+  count: number;
+}
+
+export interface McpCataloguePage {
+  items: McpCatalogueEntry[];
+  total: number;
+  catalogueTotal: number;
+  page: number;
+  pageSize: number;
+  categories: McpCatalogueFacet[];
+  languages: McpCatalogueFacet[];
+  scopes: McpCatalogueFacet[];
+  sourceUrl: string;
+  /** @nullable */
+  sourceRevision: string | null;
+  /** @nullable */
+  importedAt: string | null;
+  knowledgeCount: number;
+}
+
+export interface McpCatalogueDetail {
+  entry: McpCatalogueEntry;
+  builderBrief: string;
+  /** @nullable */
+  standardsKnowledgeId: number | null;
+  sourceUrl: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -244,4 +298,23 @@ export const DownloadComponentPackageTarget = {
   cloudflare: 'cloudflare',
   openshell: 'openshell',
 } as const;
+
+export type ListMcpCatalogueParams = {
+/**
+ * @maxLength 200
+ */
+search?: string;
+category?: string;
+language?: string;
+scope?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
 

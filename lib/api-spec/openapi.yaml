@@ -294,6 +294,38 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RuntimeAdapter"
+  /mcp-catalogue:
+    get:
+      operationId: listMcpCatalogue
+      tags: [MCP Catalogue]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: language, in: query, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 24 } }
+      responses:
+        "200":
+          description: Searchable reference directory; listings are not installed or security approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpCataloguePage" }
+        "400": { description: Invalid filters }
+  /mcp-catalogue/{id}:
+    get:
+      operationId: getMcpCatalogueEntry
+      tags: [MCP Catalogue]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Reference details and a standards-aware AI builder brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpCatalogueDetail" }
+        "400": { description: Invalid identifier }
+        "404": { description: Reference not found }
 components:
   parameters:
     Id:
@@ -303,6 +335,53 @@ components:
       schema:
         type: integer
   schemas:
+    McpCatalogueEntry:
+      type: object
+      required: [id, name, url, description, categories, languages, scopes, platforms, officialListed, reviewStatus, knowledgeId, sourceRevision, importedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        url: { type: string }
+        description: { type: string }
+        categories: { type: array, items: { type: string } }
+        languages: { type: array, items: { type: string } }
+        scopes: { type: array, items: { type: string } }
+        platforms: { type: array, items: { type: string } }
+        officialListed: { type: boolean }
+        reviewStatus: { type: string, enum: [unreviewed] }
+        knowledgeId: { type: [integer, "null"] }
+        sourceRevision: { type: string }
+        importedAt: { type: string, format: date-time }
+    McpCatalogueFacet:
+      type: object
+      required: [name, count]
+      properties:
+        name: { type: string }
+        count: { type: integer }
+    McpCataloguePage:
+      type: object
+      required: [items, total, catalogueTotal, page, pageSize, categories, languages, scopes, sourceUrl, sourceRevision, importedAt, knowledgeCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/McpCatalogueEntry" } }
+        total: { type: integer }
+        catalogueTotal: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        categories: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
+        languages: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
+        scopes: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
+        sourceUrl: { type: string }
+        sourceRevision: { type: [string, "null"] }
+        importedAt: { type: [string, "null"], format: date-time }
+        knowledgeCount: { type: integer }
+    McpCatalogueDetail:
+      type: object
+      required: [entry, builderBrief, standardsKnowledgeId, sourceUrl]
+      properties:
+        entry: { $ref: "#/components/schemas/McpCatalogueEntry" }
+        builderBrief: { type: string }
+        standardsKnowledgeId: { type: [integer, "null"] }
+        sourceUrl: { type: string }
     HealthStatus:
       type: object
       properties:

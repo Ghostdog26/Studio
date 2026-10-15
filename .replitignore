@@ -3,3 +3,10 @@
 
 # No need to store the pnpm store twice.
 .local
+
+generated-artifacts
+vendor/cloudflare-os/.wrangler
+vendor/cloudflare-os/.vp
+vendor/cloudflare-os/.vite
+vendor/cloudflare-os/**/.wrangler
+vendor/cloudflare-os/**/dist-app

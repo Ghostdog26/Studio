@@ -1,1 +1,2 @@
 - [Portable enterprise runtime](portable-enterprise-runtime.md) — provider-neutral definitions for Cloudflare and NVIDIA OpenShell; generation is separate from connected deployment.
+- [Cloudflare OS hosting](cloudflare-os-hosting.md) — distinguish development preview from production hosting; cached build execution and local admin assumptions need care.

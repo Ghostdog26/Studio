@@ -8,6 +8,7 @@ import OverviewPage from '@/pages/overview';
 import KnowledgePage from '@/pages/knowledge';
 import AgentsPage from '@/pages/agents';
 import McpPage from '@/pages/mcp';
+import CataloguePage from '@/pages/catalogue';
 import RuntimesPage from '@/pages/runtimes';
 import NotFound from '@/pages/not-found';
 import {
@@ -31,6 +32,7 @@ function Router() {
           <Route path="/knowledge" component={KnowledgePage} />
           <Route path="/agents" component={AgentsPage} />
           <Route path="/mcp" component={McpPage} />
+          <Route path="/catalogue" component={CataloguePage} />
           <Route path="/runtimes" component={RuntimesPage} />
           <Route component={NotFound} />
         </Switch>

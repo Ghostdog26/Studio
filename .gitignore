@@ -47,3 +47,11 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Cloudflare OS runtime state and upstream build caches
+vendor/cloudflare-os/.wrangler/
+vendor/cloudflare-os/.vp/
+vendor/cloudflare-os/.vite/
+vendor/cloudflare-os/**/src/generated/
+vendor/cloudflare-os/**/wrangler.dev.jsonc
+/generated-artifacts/

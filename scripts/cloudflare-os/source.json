@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/cloudflare/cloudflare-os",
+  "revision": "fd13354df50aebf6ea0ac1a30fe0229742ace51d",
+  "license": "Apache-2.0",
+  "sourceDirectory": "vendor/cloudflare-os",
+  "previewPath": "/cloudflare-os/",
+  "mode": "upstream-development-runner",
+  "productionReady": false
+}

@@ -340,3 +340,89 @@ export const ListRuntimesResponseItem = zod.object({
 export const ListRuntimesResponse = zod.array(ListRuntimesResponseItem)
 
 
+export const listMcpCatalogueQuerySearchMax = 200;
+
+export const listMcpCatalogueQueryPageDefault = 1;
+
+export const listMcpCatalogueQueryPageSizeDefault = 24;
+export const listMcpCatalogueQueryPageSizeMax = 100;
+
+
+
+export const ListMcpCatalogueQueryParams = zod.object({
+  "search": zod.coerce.string().max(listMcpCatalogueQuerySearchMax).optional(),
+  "category": zod.coerce.string().optional(),
+  "language": zod.coerce.string().optional(),
+  "scope": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().min(1).default(listMcpCatalogueQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listMcpCatalogueQueryPageSizeMax).default(listMcpCatalogueQueryPageSizeDefault)
+})
+
+export const ListMcpCatalogueResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "description": zod.string(),
+  "categories": zod.array(zod.string()),
+  "languages": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "platforms": zod.array(zod.string()),
+  "officialListed": zod.boolean(),
+  "reviewStatus": zod.enum(['unreviewed']),
+  "knowledgeId": zod.number().int().nullable(),
+  "sourceRevision": zod.string(),
+  "importedAt": zod.coerce.date()
+})),
+  "total": zod.number().int(),
+  "catalogueTotal": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "categories": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.number().int()
+})),
+  "languages": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.number().int()
+})),
+  "scopes": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.number().int()
+})),
+  "sourceUrl": zod.string(),
+  "sourceRevision": zod.string().nullable(),
+  "importedAt": zod.coerce.date().nullable(),
+  "knowledgeCount": zod.number().int()
+})
+
+
+
+
+
+export const GetMcpCatalogueEntryParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const GetMcpCatalogueEntryResponse = zod.object({
+  "entry": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "description": zod.string(),
+  "categories": zod.array(zod.string()),
+  "languages": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "platforms": zod.array(zod.string()),
+  "officialListed": zod.boolean(),
+  "reviewStatus": zod.enum(['unreviewed']),
+  "knowledgeId": zod.number().int().nullable(),
+  "sourceRevision": zod.string(),
+  "importedAt": zod.coerce.date()
+}),
+  "builderBrief": zod.string(),
+  "standardsKnowledgeId": zod.number().int().nullable(),
+  "sourceUrl": zod.string()
+})
+
+

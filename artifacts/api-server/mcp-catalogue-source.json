@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/punkpeye/awesome-mcp-servers",
+  "revision": "cc7f1f42c3fa8ced6fd5c0e02ea366ef7ed8cf1b",
+  "license": "MIT",
+  "content": "Server directory metadata only; implementation code is not imported or executed."
+}

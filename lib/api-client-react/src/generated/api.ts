@@ -30,6 +30,9 @@ import type {
   KnowledgeInput,
   KnowledgeQueryInput,
   KnowledgeUpdate,
+  ListMcpCatalogueParams,
+  McpCatalogueDetail,
+  McpCataloguePage,
   McpComponent,
   McpComponentInput,
   McpComponentUpdate,
@@ -1440,6 +1443,155 @@ export function useListRuntimes<TData = Awaited<ReturnType<typeof listRuntimes>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListRuntimesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMcpCatalogueUrl = (params?: ListMcpCatalogueParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/mcp-catalogue?${stringifiedParams}` : `/api/mcp-catalogue`
+}
+
+export const listMcpCatalogue = async (params?: ListMcpCatalogueParams, options?: Parameters<typeof customFetch>[1]): Promise<McpCataloguePage> => {
+
+  return customFetch<McpCataloguePage>(getListMcpCatalogueUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMcpCatalogueQueryKey = (params?: ListMcpCatalogueParams,) => {
+    return [
+    `/api/mcp-catalogue`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMcpCatalogueQueryOptions = <TData = Awaited<ReturnType<typeof listMcpCatalogue>>, TError = ErrorType<void>>(params?: ListMcpCatalogueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMcpCatalogueQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMcpCatalogue>>> = ({ signal }) => listMcpCatalogue(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMcpCatalogue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMcpCatalogueQueryResult = NonNullable<Awaited<ReturnType<typeof listMcpCatalogue>>>
+export type ListMcpCatalogueQueryError = ErrorType<void>
+
+
+
+export function useListMcpCatalogue<TData = Awaited<ReturnType<typeof listMcpCatalogue>>, TError = ErrorType<void>>(
+ params?: ListMcpCatalogueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMcpCatalogueQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMcpCatalogueEntryUrl = (id: number,) => {
+
+
+
+
+  return `/api/mcp-catalogue/${id}`
+}
+
+export const getMcpCatalogueEntry = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<McpCatalogueDetail> => {
+
+  return customFetch<McpCatalogueDetail>(getGetMcpCatalogueEntryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMcpCatalogueEntryQueryKey = (id: number,) => {
+    return [
+    `/api/mcp-catalogue/${id}`
+    ] as const;
+    }
+
+
+export const getGetMcpCatalogueEntryQueryOptions = <TData = Awaited<ReturnType<typeof getMcpCatalogueEntry>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMcpCatalogueEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMcpCatalogueEntryQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMcpCatalogueEntry>>> = ({ signal }) => getMcpCatalogueEntry(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMcpCatalogueEntry>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMcpCatalogueEntryQueryResult = NonNullable<Awaited<ReturnType<typeof getMcpCatalogueEntry>>>
+export type GetMcpCatalogueEntryQueryError = ErrorType<void>
+
+
+
+export function useGetMcpCatalogueEntry<TData = Awaited<ReturnType<typeof getMcpCatalogueEntry>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMcpCatalogueEntry>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMcpCatalogueEntryQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
