@@ -3,3 +3,5 @@
 - [MCP standardization priorities](mcp-standardization-priorities.md) — twelve categories need extra rigor; official SDK sources must preserve the user's requested server language.
 - [Builder model contracts](builder-model-contracts.md) — JSON response mode does not ensure a typed planning contract; use explicit output shapes and fail-closed validation.
 - [Enterprise knowledge boundary](enterprise-boundary.md) — shared demo access and workspace ownership do not authorize collaborators' enterprise knowledge.
+- [OpenMetadata source policy](openmetadata-source-policy.md) — intended enterprise catalogue source; reference understanding does not authorize live instance access.
+- [Generated validation constants](codegen-validation-quirk.md) — generated validators can use numeric constants before declaration; generation alone is not verification.

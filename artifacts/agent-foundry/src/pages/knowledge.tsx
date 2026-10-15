@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getGetOverviewQueryKey, getListKnowledgeQueryKey, useCreateKnowledge, useDeleteKnowledge, useListKnowledge, useQueryKnowledge, useUpdateKnowledge, type KnowledgeDocument } from '@workspace/api-client-react';
 import { BookOpen, Check, Clock3, Pencil, Search, Trash2 } from 'lucide-react';
 import { AddButton, Button, EmptyState, ErrorState, Field, inputClass, Modal, Notice, PageHeading, Panel, SectionTitle, textareaClass } from '@/components/foundry-ui';
+import { OpenMetadataReference } from '@/components/openmetadata-reference';
 
 type DocFields = { title: string; content: string; source: string; tags: string };
 const emptyDoc: DocFields = { title: '', content: '', source: '', tags: '' };
@@ -65,6 +66,7 @@ export default function KnowledgePage() {
     <>
       <PageHeading eyebrow="Shared second brain" title="Knowledge, with receipts." description="Keep durable team context in one place. Ask a question and inspect the exact sources behind the response." action={<AddButton onClick={openNew}>Add document</AddButton>} />
       {feedback && <Notice tone={feedback.error ? 'error' : 'success'}>{feedback.text}</Notice>}
+      <OpenMetadataReference documents={allDocuments.data ?? []} onRead={setReading} onAsk={setQuery} />
       <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
         <Panel className="p-5 md:p-6">
           <SectionTitle meta={<span className="foundry-mono text-[10px] text-muted-foreground">{allDocuments.data?.length ?? '—'} DOCUMENTS</span>}>Knowledge library</SectionTitle>

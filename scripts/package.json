@@ -6,6 +6,8 @@
   "scripts": {
     "enterprise-standards": "tsx ./src/enterprise-standards.ts",
     "test:enterprise": "tsx --test ../artifacts/api-server/src/lib/enterprise-auth.test.ts ./src/enterprise-integration.test.ts",
+    "test:openmetadata": "tsx --test ./src/openmetadata.test.ts",
+    "test:openmetadata-integration": "tsx --test ./src/openmetadata-integration.test.ts",
     "cloudflare-os:prepare": "node ./cloudflare-os/prepare.mjs",
     "cloudflare-os:serve": "node ./cloudflare-os/serve.mjs",
     "cloudflare-os:preview": "node ./cloudflare-os/serve.mjs --unsafe-trusted-preview",

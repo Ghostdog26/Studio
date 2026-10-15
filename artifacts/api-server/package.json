@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "openmetadata:import": "node scripts/import-openmetadata.mjs",
     "catalogue:import": "node scripts/import-mcp-catalogue.mjs",
     "mcp:official-import": "node scripts/import-official-mcp.mjs",
     "catalogue:test": "node --experimental-strip-types --test tests/catalogue-parser.test.mjs",

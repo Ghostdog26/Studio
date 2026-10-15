@@ -2,6 +2,10 @@
 
 Agent Foundry is a system for producing standardized MCP servers, MCP Apps, and agents for enterprise developers and users—not a requirement for a development team to hand-build every instance.
 
+OpenMetadata's portable reference profile uses this same scoped standards/context boundary.
+See [OpenMetadata enterprise context](openmetadata-context.md) for standards 1.1.0 selection,
+version-qualified sources, offline context contracts and later connector prerequisites.
+
 ## Product workflow
 
 1. **Knowledge and standards:** supply approved company context, JSON Schemas, reusable templates, access policies, and deployment constraints.

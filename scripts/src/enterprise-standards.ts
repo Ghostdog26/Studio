@@ -6,12 +6,12 @@ import { z } from "zod/v4";
 import {
   db, pool, enterpriseStandardsTable, enterpriseGrantsTable, enterpriseDocumentGrantsTable, knowledgeDocumentsTable, knowledgeQueryCacheTable,
 } from "@workspace/db";
-import { initialEnterpriseStandard, parseStandard } from "@workspace/agent-runtime/enterprise-standards";
+import { initialEnterpriseStandard, openMetadataEnterpriseStandard, parseStandard } from "@workspace/agent-runtime/enterprise-standards";
 
 const [command, file, tokenFile] = process.argv.slice(2);
 try {
   if (command === "publish") {
-    const standard = parseStandard(file ? JSON.parse(await readFile(file, "utf8")) : initialEnterpriseStandard);
+    const standard = parseStandard(file === "openmetadata" ? openMetadataEnterpriseStandard : file ? JSON.parse(await readFile(file, "utf8")) : initialEnterpriseStandard);
     const digest = createHash("sha256").update(JSON.stringify(standard)).digest("hex");
     const inserted = await db.insert(enterpriseStandardsTable).values({
       version: standard.version, digest, bundle: standard,

@@ -7,9 +7,22 @@
  */
 import * as zod from 'zod';
 
-
 export const discoverBuilderApproachesBodyGoalMin = 8;
 export const discoverBuilderApproachesBodyGoalMax = 2000;
+export const draftBuilderDefinitionBodyGoalMin = 8;
+export const draftBuilderDefinitionBodyGoalMax = 2000;
+export const draftBuilderDefinitionBodyDataSourceMax = 1000;
+export const draftBuilderDefinitionBodyAuthRequirementsMax = 1000;
+export const callEnterpriseMcpBodyTwoWorkspaceIdMax = 200;
+export const callEnterpriseMcpBodyTwoUserIdMax = 200;
+export const queryKnowledgeBodyQueryMin = 2;
+export const listMcpCatalogueQuerySearchMax = 200;
+export const listMcpCatalogueQueryPageDefault = 1;
+export const listMcpCatalogueQueryPageSizeDefault = 24;
+export const listMcpCatalogueQueryPageSizeMax = 100;
+export const generateLanguageMcpPackageBodyInstructionsMax = 6000;
+export const generateLanguageMcpPackageBodyCategoriesMax = 12;
+
 
 
 
@@ -41,12 +54,7 @@ export const DiscoverBuilderApproachesResponse = zod.object({
 })
 
 
-export const draftBuilderDefinitionBodyGoalMin = 8;
-export const draftBuilderDefinitionBodyGoalMax = 2000;
 
-export const draftBuilderDefinitionBodyDataSourceMax = 1000;
-
-export const draftBuilderDefinitionBodyAuthRequirementsMax = 1000;
 
 
 
@@ -93,10 +101,6 @@ export const DraftBuilderDefinitionResponse = zod.object({
 export const CallEnterpriseMcpHeader = zod.object({
   "x-foundry-signature": zod.string().optional()
 })
-
-export const callEnterpriseMcpBodyTwoWorkspaceIdMax = 200;
-
-export const callEnterpriseMcpBodyTwoUserIdMax = 200;
 
 
 
@@ -233,9 +237,6 @@ export const DeleteKnowledgeResponse = zod.void()
 /**
  * @summary Query the knowledge base with cached retrieval and reranking
  */
-export const queryKnowledgeBodyQueryMin = 2;
-
-
 
 export const QueryKnowledgeBody = zod.object({
   "query": zod.string().min(queryKnowledgeBodyQueryMin)
@@ -452,13 +453,8 @@ export const ListRuntimesResponseItem = zod.object({
 export const ListRuntimesResponse = zod.array(ListRuntimesResponseItem)
 
 
-export const listMcpCatalogueQuerySearchMax = 200;
 
 export const listMcpCatalogueQueryFocusDefault = `all`;
-export const listMcpCatalogueQueryPageDefault = 1;
-
-export const listMcpCatalogueQueryPageSizeDefault = 24;
-export const listMcpCatalogueQueryPageSizeMax = 100;
 
 
 
@@ -575,10 +571,6 @@ export const ListMcpSdksResponse = zod.object({
 
 
 
-export const generateLanguageMcpPackageBodyInstructionsMax = 6000;
-
-export const generateLanguageMcpPackageBodyCategoriesMax = 12;
-
 
 
 export const GenerateLanguageMcpPackageBody = zod.object({
@@ -607,5 +599,3 @@ export const GenerateLanguageMcpPackageResponse = zod.object({
 })),
   "appliedCategories": zod.array(zod.string())
 })
-
-

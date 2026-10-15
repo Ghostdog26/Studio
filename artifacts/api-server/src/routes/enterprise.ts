@@ -120,7 +120,7 @@ router.post("/enterprise/mcp", async (req, res): Promise<void> => {
         }
         result = validateCandidate({
           ...standard, permittedTools: standard.permittedTools.filter(tool => grant.permittedTools.includes(tool)),
-        }, candidate, documentIds); break;
+        }, candidate, documentIds, { workspaceId, userId }); break;
       }
       default: res.status(400).json({ error: "Unknown tool." }); return;
     }

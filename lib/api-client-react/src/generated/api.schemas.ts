@@ -567,4 +567,3 @@ export const ListMcpCatalogueFocus = {
   all: 'all',
   priority: 'priority',
 } as const;
-

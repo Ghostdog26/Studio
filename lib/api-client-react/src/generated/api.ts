@@ -2023,4 +2023,3 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getGenerateLanguageMcpPackageMutationOptions(options));
     }
-

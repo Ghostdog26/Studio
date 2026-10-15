@@ -2,6 +2,10 @@
 
 Agent Foundry imports the **directory metadata** from [punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers), not the implementation code of every listed server.
 
+OpenMetadata is a separate [enterprise context reference profile](openmetadata-context.md),
+not a replacement for this community directory. Its own MCP interface, catalogue records
+describing other MCP servers and live authenticated discovery are distinct layers.
+
 ## Using it
 
 - Open **Catalogue** in the Agent Foundry navigation.

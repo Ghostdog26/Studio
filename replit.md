@@ -72,3 +72,10 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 - Import is metadata only, not installation or approval. See `docs/mcp-catalogue.md` for repeat-import behavior and trust boundaries.
 - Official specification/SDK references: `vendor/mcp-official/`; sync using `pnpm --filter @workspace/api-server run mcp:official-import`.
 - `/mcp` supports source-backed, language-selectable AI server drafts. Structural validation is not compilation/conformance/security approval; generated code is never executed or deployed by this endpoint. See `docs/official-mcp-builder.md`.
+
+## OpenMetadata context
+
+- **Knowledge** exposes versioned OpenMetadata reference knowledge and a copyable provider-neutral profile selection. It is reference-only/not-connected, not an enterprise connector.
+- Import: `pnpm --filter @workspace/api-server run openmetadata:import`; publish: `pnpm --filter @workspace/scripts run enterprise-standards publish openmetadata`.
+- Standards 1.1.0 has `openmetadata-agent`, `openmetadata-server`, `openmetadata-app`; use the existing explicit workspace/user grants and scoped generation tools. The 1.0.0 bundle remains unchanged.
+- `pnpm --filter @workspace/scripts run test:openmetadata` checks offline fixtures; see `docs/openmetadata-context.md` for provenance, contracts, safety requirements and future connector inputs.

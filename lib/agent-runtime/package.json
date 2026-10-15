@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./openmetadata": "./src/openmetadata-reference.ts",
+    "./openmetadata-contract": "./src/openmetadata-contract.ts",
     "./enterprise-standards": "./src/enterprise-standards.ts"
   },
   "dependencies": {
