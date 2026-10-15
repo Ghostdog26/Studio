@@ -15,6 +15,7 @@ export interface McpCataloguePage {
   page: number;
   pageSize: number;
   categories: McpCatalogueFacet[];
+  priorityCategories: McpCatalogueFacet[];
   languages: McpCatalogueFacet[];
   scopes: McpCatalogueFacet[];
   sourceUrl: string;

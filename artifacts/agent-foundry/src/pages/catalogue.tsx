@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { keepPreviousData } from '@tanstack/react-query';
-import { getGetMcpCatalogueEntryQueryKey, getListMcpCatalogueQueryKey, useGetMcpCatalogueEntry, useListMcpCatalogue, type McpCatalogueEntry, type McpCatalogueFacet } from '@workspace/api-client-react';
-import { BookOpen, Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Library, Search, X } from 'lucide-react';
+import { getGetMcpCatalogueEntryQueryKey, getListMcpCatalogueQueryKey, useGetMcpCatalogueEntry, useListMcpCatalogue, type McpCatalogueEntry, type McpCatalogueFacet, type McpCategoryStandard, type ListMcpCatalogueFocus } from '@workspace/api-client-react';
+import { BookOpen, Check, ClipboardList, ListOrdered, ShieldCheck, ChevronLeft, ChevronRight, Copy, ExternalLink, Library, Search, X } from 'lucide-react';
 import { Button, EmptyState, ErrorState, inputClass, Notice, PageHeading, Panel } from '@/components/foundry-ui';
 
 const PAGE_SIZE = 24;
@@ -57,7 +57,7 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
   };
   if (detail.isLoading) return <div className="space-y-3 p-5"><div className="h-6 w-1/2 animate-pulse rounded bg-muted" /><div className="h-3 w-full animate-pulse rounded bg-muted" /><div className="h-3 w-4/5 animate-pulse rounded bg-muted" /><div className="mt-4 h-48 animate-pulse rounded-lg bg-muted" /></div>;
   if (detail.isError || !detail.data) return <div className="p-5"><ErrorState label="Could not load this catalogue entry." onRetry={() => { void detail.refetch(); }} /></div>;
-  const { entry, builderBrief, standardsKnowledgeId, sourceUrl } = detail.data;
+  const { entry, builderBrief, standardsKnowledgeId, sourceUrl, reviewStandards } = detail.data;
   const meta: [string, string[]][] = [['Categories', entry.categories], ['Languages', entry.languages], ['Scope (service connected)', entry.scopes], ['Platforms', entry.platforms]];
   return (
     <div data-testid="panel-catalogue-detail">
@@ -84,6 +84,7 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
             : <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-[11px] text-muted-foreground"><BookOpen size={13} />No knowledge document</span>}
           {standardsKnowledgeId != null && <Link href={`/knowledge?document=${standardsKnowledgeId}`} data-testid="link-standards-knowledge" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[11px] font-semibold hover:bg-muted"><Library size={13} />Builder standards</Link>}
         </div>
+        <ReviewStandards standards={reviewStandards} />
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <div><div className="text-xs font-semibold">AI builder brief</div><div className="text-[10px] text-muted-foreground">Paste into an AI builder as grounded context.</div></div>
@@ -98,12 +99,51 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
   );
 }
 
+function ReviewStandards({ standards }: { standards: McpCategoryStandard[] }) {
+  if (!standards.length) return <div className="rounded-lg border border-dashed border-border px-3.5 py-3 text-[11px] text-muted-foreground" data-testid="text-no-standards">No priority-category review standard applies to this entry's categories. General builder standards still apply.</div>;
+  return (
+    <div data-testid="section-review-standards">
+      <div className="mb-2 flex items-start gap-2">
+        <ShieldCheck size={15} className="mt-0.5 text-primary" />
+        <div><div className="text-xs font-semibold">Required review standards</div><div className="text-[10px] leading-relaxed text-muted-foreground">These checks are requirements a builder must satisfy. None have been audited or completed for this entry.</div></div>
+      </div>
+      <div className="space-y-3">
+        {standards.map((st) => (
+          <div key={st.category} className="overflow-hidden rounded-lg border border-border" data-testid={`standard-${st.category}`}>
+            <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5">
+              <span className="text-[12px] font-semibold">{st.category}</span>
+              <span className="foundry-mono rounded bg-card px-1.5 text-[9px] text-muted-foreground">v{st.version}</span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-semibold text-amber-800">Required, not audited</span>
+              {st.knowledgeId != null
+                ? <Link href={`/knowledge?document=${st.knowledgeId}`} className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline" data-testid={`link-standard-knowledge-${st.category}`}><BookOpen size={11} />Wiki guidance</Link>
+                : <span className="ml-auto text-[10px] text-muted-foreground">No wiki guidance linked</span>}
+            </div>
+            <p className="px-3.5 pt-2.5 text-[11px] leading-relaxed text-muted-foreground">{st.summary}</p>
+            <ol className="divide-y divide-border">
+              {st.checks.map((c) => (
+                <li key={c.id} className="px-3.5 py-2.5" data-testid={`check-${c.id}`}>
+                  <div className="flex gap-2"><span className="foundry-mono shrink-0 text-[9px] text-primary">{c.id}</span><span className="text-[11.5px] font-medium leading-relaxed">{c.requirement}</span></div>
+                  <dl className="mt-1.5 grid gap-1.5 pl-1 sm:grid-cols-2">
+                    <div><dt className="foundry-mono text-[8.5px] uppercase tracking-[0.14em] text-muted-foreground">Evidence required</dt><dd className="text-[10.5px] leading-relaxed">{c.evidence}</dd></div>
+                    <div><dt className="foundry-mono text-[8.5px] uppercase tracking-[0.14em] text-muted-foreground">Acceptance test</dt><dd className="text-[10.5px] leading-relaxed">{c.acceptanceTest}</dd></div>
+                  </dl>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CataloguePage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [language, setLanguage] = useState('');
   const [scope, setScope] = useState('');
+  const [focus, setFocus] = useState<ListMcpCatalogueFocus>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -112,13 +152,13 @@ export default function CataloguePage() {
     return () => window.clearTimeout(t);
   }, [searchInput]);
 
-  const params = { search: search || undefined, category: category || undefined, language: language || undefined, scope: scope || undefined, page, pageSize: PAGE_SIZE };
+  const params = { search: search || undefined, category: category || undefined, language: language || undefined, scope: scope || undefined, focus, page, pageSize: PAGE_SIZE };
   const list = useListMcpCatalogue(params, { query: { queryKey: getListMcpCatalogueQueryKey(params), staleTime: 2 * 60_000, placeholderData: keepPreviousData } });
   const data = list.data;
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const filtered = !!(search || category || language || scope);
+  const filtered = !!(focus === 'priority' || search || category || language || scope);
   const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setPage(1); };
-  const clear = () => { setSearchInput(''); setSearch(''); setCategory(''); setLanguage(''); setScope(''); setPage(1); };
+  const clear = () => { setFocus('all'); setSearchInput(''); setSearch(''); setCategory(''); setLanguage(''); setScope(''); setPage(1); };
 
   return (
     <>
@@ -132,6 +172,19 @@ export default function CataloguePage() {
         <FacetSelect label="Category" value={category} facets={data?.categories ?? []} onChange={setFilter(setCategory)} testId="select-category" />
         <FacetSelect label="Language" value={language} facets={data?.languages ?? []} onChange={setFilter(setLanguage)} testId="select-language" />
         <FacetSelect label="Scope" value={scope} facets={data?.scopes ?? []} onChange={setFilter(setScope)} testId="select-scope" />
+      </Panel>
+      <Panel className="mb-4 p-4" >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-2"><ListOrdered size={15} className="mt-0.5 text-primary" /><div><div className="text-xs font-semibold">Priority review areas</div><div className="text-[10px] text-muted-foreground">Twelve areas with rigorous review standards. Pick one to filter, or show priority entries first. Every other category stays available in the Category filter.</div></div></div>
+          <div className="inline-flex shrink-0 rounded-lg border border-border bg-muted/50 p-0.5" role="group" aria-label="Ordering">
+            {(['all', 'priority'] as const).map((f) => <button key={f} type="button" aria-pressed={focus === f} onClick={() => { setFocus(f); setPage(1); }} data-testid={`button-focus-${f}`} className={`rounded-md px-3 py-1.5 text-[11px] font-semibold transition ${focus === f ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{f === 'all' ? 'All entries' : 'Priority areas'}</button>)}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5" data-testid="list-priority-categories">
+          {list.isLoading ? Array.from({ length: 12 }, (_, i) => <div key={i} className="h-7 w-28 animate-pulse rounded-full bg-muted" />)
+            : (data?.priorityCategories ?? []).map((pc) => { const on = category === pc.name; return <button key={pc.name} type="button" aria-pressed={on} onClick={() => setFilter(setCategory)(on ? '' : pc.name)} data-testid={`chip-priority-${pc.name}`} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:border-primary/40 hover:bg-accent/50'}`}>{pc.name}<span className={`foundry-mono text-[9px] ${on ? 'opacity-80' : 'text-muted-foreground'}`}>{pc.count}</span></button>; })}
+          {!list.isLoading && data && data.priorityCategories.length === 0 && <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"><ClipboardList size={12} />No priority categories reported by the catalogue.</span>}
+        </div>
       </Panel>
       <div className={`grid gap-4 ${selected ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]' : ''}`}>
         <Panel className="min-w-0 overflow-hidden">

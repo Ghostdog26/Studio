@@ -5,6 +5,7 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListMcpCatalogueFocus } from './listMcpCatalogueFocus';
 
 export type ListMcpCatalogueParams = {
 /**
@@ -14,6 +15,7 @@ search?: string;
 category?: string;
 language?: string;
 scope?: string;
+focus?: ListMcpCatalogueFocus;
 /**
  * @minimum 1
  */

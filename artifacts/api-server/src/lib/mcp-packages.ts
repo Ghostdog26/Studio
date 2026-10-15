@@ -11,7 +11,7 @@ export interface McpPackageDefinition {
   jsonSchema: Record<string, unknown>;
 }
 
-interface PackageFile {
+export interface PackageFile {
   path: string;
   content: string;
 }
@@ -754,7 +754,7 @@ This starter does not add OAuth or tenant authorization. Do not expose a develop
 `;
 }
 
-function createTarGzip(files: PackageFile[]): Buffer {
+export function createTarGzip(files: PackageFile[]): Buffer {
   const blocks: Buffer[] = [];
   const encoder = new TextEncoder();
 

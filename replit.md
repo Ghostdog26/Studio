@@ -69,3 +69,5 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 - Source provenance: `artifacts/api-server/mcp-catalogue-source.json`; MIT attribution: `docs/third-party/awesome-mcp-servers-LICENSE.txt`.
 - Import: `pnpm --filter @workspace/api-server run catalogue:import`; parser checks: `pnpm --filter @workspace/api-server run catalogue:test`.
 - Import is metadata only, not installation or approval. See `docs/mcp-catalogue.md` for repeat-import behavior and trust boundaries.
+- Official specification/SDK references: `vendor/mcp-official/`; sync using `pnpm --filter @workspace/api-server run mcp:official-import`.
+- `/mcp` supports source-backed, language-selectable AI server drafts. Structural validation is not compilation/conformance/security approval; generated code is never executed or deployed by this endpoint. See `docs/official-mcp-builder.md`.

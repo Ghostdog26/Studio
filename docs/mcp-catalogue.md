@@ -7,6 +7,7 @@ Agent Foundry imports the **directory metadata** from [punkpeye/awesome-mcp-serv
 - Open **Catalogue** in the Agent Foundry navigation.
 - Search by name/description, filter by category, language, or service scope, and browse paginated results.
 - Select an entry for its repository link, linked knowledge document, and a copyable AI builder brief.
+- Use **Priority areas** to focus on the twelve requested enterprise categories; their details and briefs include domain-specific requirements, evidence requests, and acceptance tests. These are required reviews, not completed audits.
 - The shared knowledge query endpoint can retrieve and cite these descriptions when answering MCP design questions.
 - The architecture notes supplied by the user are retained as a separate knowledge document. A qualified builder standards document covers Host/Client/Server roles, Resources/Tools/Prompts, version/transport selection, authorization, and the human-review workflow.
 
@@ -25,5 +26,7 @@ Importing does not clone, install, connect, execute, audit, or approve the liste
 3. To choose a newer reviewed directory snapshot, pass `--revision=<full Git commit>` and update the source metadata deliberately.
 
 The importer is transactional, serializes concurrent imports, deduplicates URLs and merges categories, preserves catalogue IDs on repeat imports, and invalidates answer caches after a successful import. It updates its generated reference/guide knowledge documents; keep human-written additions in separate wiki documents rather than editing importer-managed content. It never deletes unrelated enterprise wiki data. Entries removed upstream are retained historically, but browsing lists the latest imported revision.
+
+Official protocol/SDK source knowledge and language-aware server generation are described in `docs/official-mcp-builder.md`.
 
 The raw source download, license copy, build output, and import report live under ignored `generated-artifacts/mcp-catalogue/`. PostgreSQL stores catalogue metadata and linked wiki documents. No GitHub credentials are needed for this public directory import.

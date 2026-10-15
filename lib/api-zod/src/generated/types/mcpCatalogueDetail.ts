@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { McpCatalogueEntry } from './mcpCatalogueEntry';
+import type { McpCategoryStandard } from './mcpCategoryStandard';
 
 export interface McpCatalogueDetail {
   entry: McpCatalogueEntry;
@@ -13,4 +14,5 @@ export interface McpCatalogueDetail {
   /** @nullable */
   standardsKnowledgeId: number | null;
   sourceUrl: string;
+  reviewStandards: McpCategoryStandard[];
 }

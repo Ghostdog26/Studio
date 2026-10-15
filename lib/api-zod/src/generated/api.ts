@@ -342,6 +342,7 @@ export const ListRuntimesResponse = zod.array(ListRuntimesResponseItem)
 
 export const listMcpCatalogueQuerySearchMax = 200;
 
+export const listMcpCatalogueQueryFocusDefault = `all`;
 export const listMcpCatalogueQueryPageDefault = 1;
 
 export const listMcpCatalogueQueryPageSizeDefault = 24;
@@ -354,6 +355,7 @@ export const ListMcpCatalogueQueryParams = zod.object({
   "category": zod.coerce.string().optional(),
   "language": zod.coerce.string().optional(),
   "scope": zod.coerce.string().optional(),
+  "focus": zod.enum(['all', 'priority']).default(listMcpCatalogueQueryFocusDefault),
   "page": zod.coerce.number().int().min(1).default(listMcpCatalogueQueryPageDefault),
   "pageSize": zod.coerce.number().int().min(1).max(listMcpCatalogueQueryPageSizeMax).default(listMcpCatalogueQueryPageSizeDefault)
 })
@@ -379,6 +381,10 @@ export const ListMcpCatalogueResponse = zod.object({
   "page": zod.number().int(),
   "pageSize": zod.number().int(),
   "categories": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.number().int()
+})),
+  "priorityCategories": zod.array(zod.object({
   "name": zod.string(),
   "count": zod.number().int()
 })),
@@ -422,7 +428,72 @@ export const GetMcpCatalogueEntryResponse = zod.object({
 }),
   "builderBrief": zod.string(),
   "standardsKnowledgeId": zod.number().int().nullable(),
-  "sourceUrl": zod.string()
+  "sourceUrl": zod.string(),
+  "reviewStandards": zod.array(zod.object({
+  "category": zod.string(),
+  "version": zod.string(),
+  "summary": zod.string(),
+  "knowledgeId": zod.number().int().nullable(),
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "requirement": zod.string(),
+  "evidence": zod.string(),
+  "acceptanceTest": zod.string()
+}))
+}))
+})
+
+
+export const ListMcpSdksResponse = zod.object({
+  "organizationUrl": zod.string(),
+  "specificationRepository": zod.string(),
+  "specificationRevision": zod.string(),
+  "protocolVersion": zod.string(),
+  "specificationKnowledgeId": zod.number().int().nullable(),
+  "sdks": zod.array(zod.object({
+  "language": zod.string(),
+  "label": zod.string(),
+  "repository": zod.string(),
+  "sourceRevision": zod.string(),
+  "knowledgeId": zod.number().int().nullable(),
+  "targets": zod.array(zod.enum(['cloudflare', 'openshell'])),
+  "tier": zod.number().int()
+}))
+})
+
+
+
+export const generateLanguageMcpPackageBodyInstructionsMax = 3000;
+
+export const generateLanguageMcpPackageBodyCategoriesMax = 12;
+
+
+
+export const GenerateLanguageMcpPackageBody = zod.object({
+  "componentId": zod.number().int().min(1),
+  "language": zod.enum(['typescript', 'javascript', 'python', 'go', 'csharp', 'rust', 'ruby', 'java', 'swift', 'php', 'kotlin']),
+  "target": zod.enum(['cloudflare', 'openshell']),
+  "instructions": zod.string().max(generateLanguageMcpPackageBodyInstructionsMax).optional(),
+  "categories": zod.array(zod.string()).max(generateLanguageMcpPackageBodyCategoriesMax).optional()
+})
+
+export const GenerateLanguageMcpPackageResponse = zod.object({
+  "filename": zod.string(),
+  "archiveBase64": zod.string(),
+  "sourceDigest": zod.string(),
+  "language": zod.string(),
+  "target": zod.string(),
+  "sdkRepository": zod.string(),
+  "sdkSourceRevision": zod.string(),
+  "specificationRevision": zod.string(),
+  "protocolVersion": zod.string(),
+  "buildStatus": zod.enum(['not-run']),
+  "deploymentStatus": zod.enum(['not-deployed']),
+  "files": zod.array(zod.object({
+  "path": zod.string(),
+  "content": zod.string()
+})),
+  "appliedCategories": zod.array(zod.string())
 })
 
 

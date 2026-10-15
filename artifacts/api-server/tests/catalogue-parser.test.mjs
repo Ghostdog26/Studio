@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseAwesomeMcpDirectory } from "../src/lib/catalogue-parser.ts";
+import { BASELINE_CHECKS, PRIORITY_CATEGORY_STANDARDS, standardsForCategories, categoryStandardContent } from "../src/lib/catalogue-category-standards.ts";
 
 test("extracts metadata, removes badges, merges cross-category references, and skips nonservers", () => {
   const source = `## Clients
@@ -26,4 +27,18 @@ test("extracts metadata, removes badges, merges cross-category references, and s
 
 test("rejects a changed or empty source rather than replacing a catalogue with nothing", () => {
   assert.throws(() => parseAwesomeMcpDirectory("## A different format\nNo listings."), /Import aborted/);
+});
+
+test("all twelve requested categories carry evidence and negative acceptance tests, without claiming approval", () => {
+  assert.equal(PRIORITY_CATEGORY_STANDARDS.length, 12);
+  assert.equal(new Set(PRIORITY_CATEGORY_STANDARDS.map((item) => item.category)).size, 12);
+  for (const standard of PRIORITY_CATEGORY_STANDARDS) {
+    assert.ok(standard.checks.length >= 4);
+    const checks = [...BASELINE_CHECKS, ...standard.checks];
+    assert.equal(new Set(checks.map((item) => item.id)).size, checks.length);
+    assert.ok(checks.every((item) => item.requirement && item.evidence && item.acceptanceTest));
+    assert.match(categoryStandardContent(standard), /NOT completed audits/);
+  }
+  assert.equal(standardsForCategories(["Databases", "Code Execution"]).length, 2);
+  assert.equal(standardsForCategories(["Travel & Transportation"]).length, 0);
 });

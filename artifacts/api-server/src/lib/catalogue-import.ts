@@ -3,6 +3,7 @@ import {
   db, knowledgeDocumentsTable, knowledgeQueryCacheTable, mcpCatalogueTable,
 } from "@workspace/db";
 import { parseAwesomeMcpDirectory } from "./catalogue-parser";
+import { CATEGORY_STANDARDS_SOURCE_PREFIX, PRIORITY_CATEGORY_STANDARDS, categoryStandardContent } from "./catalogue-category-standards";
 import {
   MCP_DIRECTORY_URL, MCP_STANDARDS_CONTENT, MCP_STANDARDS_SOURCE, MCP_STANDARDS_TITLE,
   referenceKnowledgeContent,
@@ -38,6 +39,11 @@ export async function importMcpCatalogue(markdown: string, revision: string, use
     }
     const standardsKnowledgeId = await upsertGuide(MCP_STANDARDS_TITLE, MCP_STANDARDS_SOURCE,
       MCP_STANDARDS_CONTENT, ["MCP", "architecture", "standards", "enterprise"]);
+    for (const standard of PRIORITY_CATEGORY_STANDARDS) {
+      await upsertGuide(`${standard.category}: enterprise MCP review standard`,
+        `${CATEGORY_STANDARDS_SOURCE_PREFIX}${standard.category}`, categoryStandardContent(standard),
+        ["MCP", "priority-category", "standards", standard.category]);
+    }
     await upsertGuide("User-provided MCP architecture notes", "User-provided MCP architecture notes",
       `${userNotes}\n\nEditorial note: this user-provided text is retained verbatim; its last sentence is incomplete. Consult “${MCP_STANDARDS_TITLE}” for qualified implementation guidance and official source links.`,
       ["MCP", "user-guidance", "architecture"]);

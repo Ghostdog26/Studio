@@ -303,6 +303,7 @@ paths:
         - { name: category, in: query, schema: { type: string } }
         - { name: language, in: query, schema: { type: string } }
         - { name: scope, in: query, schema: { type: string } }
+        - { name: focus, in: query, schema: { type: string, enum: [all, priority], default: all } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 24 } }
       responses:
@@ -326,6 +327,36 @@ paths:
               schema: { $ref: "#/components/schemas/McpCatalogueDetail" }
         "400": { description: Invalid identifier }
         "404": { description: Reference not found }
+  /mcp-sdks:
+    get:
+      operationId: listMcpSdks
+      tags: [MCP]
+      responses:
+        "200":
+          description: Official specification and language SDK source snapshots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpSdkDirectory" }
+  /component-packages/generate:
+    post:
+      operationId: generateLanguageMcpPackage
+      tags: [MCP]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LanguageMcpPackageInput" }
+      responses:
+        "200":
+          description: Reviewable AI-generated source package; build and protocol checks are not implied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LanguageMcpPackage" }
+        "400": { description: Invalid request }
+        "404": { description: Definition or official SDK source not found }
+        "422": { description: Unsupported combination or invalid generated source }
+        "429": { description: Generation capacity reached }
+        "502": { description: AI provider unavailable or generated response invalid }
 components:
   parameters:
     Id:
@@ -335,6 +366,61 @@ components:
       schema:
         type: integer
   schemas:
+    McpSdk:
+      type: object
+      required: [language, label, repository, sourceRevision, knowledgeId, targets, tier]
+      properties:
+        language: { type: string }
+        label: { type: string }
+        repository: { type: string }
+        sourceRevision: { type: string }
+        knowledgeId: { type: [integer, "null"] }
+        targets: { type: array, items: { type: string, enum: [cloudflare, openshell] } }
+        tier: { type: integer }
+    McpSdkDirectory:
+      type: object
+      required: [organizationUrl, specificationRepository, specificationRevision, protocolVersion, specificationKnowledgeId, sdks]
+      properties:
+        organizationUrl: { type: string }
+        specificationRepository: { type: string }
+        specificationRevision: { type: string }
+        protocolVersion: { type: string }
+        specificationKnowledgeId: { type: [integer, "null"] }
+        sdks: { type: array, items: { $ref: "#/components/schemas/McpSdk" } }
+    LanguageMcpPackageInput:
+      type: object
+      required: [componentId, language, target]
+      properties:
+        componentId: { type: integer, minimum: 1 }
+        language: { type: string, enum: [typescript, javascript, python, go, csharp, rust, ruby, java, swift, php, kotlin] }
+        target: { type: string, enum: [cloudflare, openshell] }
+        instructions: { type: string, maxLength: 3000 }
+        categories: { type: array, maxItems: 12, uniqueItems: true, items: { type: string } }
+    LanguageMcpPackage:
+      type: object
+      required: [filename, archiveBase64, sourceDigest, language, target, sdkRepository, sdkSourceRevision, specificationRevision, protocolVersion, buildStatus, deploymentStatus, files, appliedCategories]
+      properties:
+        filename: { type: string }
+        archiveBase64: { type: string }
+        sourceDigest: { type: string }
+        language: { type: string }
+        target: { type: string }
+        sdkRepository: { type: string }
+        sdkSourceRevision: { type: string }
+        specificationRevision: { type: string }
+        protocolVersion: { type: string }
+        buildStatus: { type: string, enum: [not-run] }
+        deploymentStatus: { type: string, enum: [not-deployed] }
+        files:
+          type: array
+          items: { $ref: "#/components/schemas/McpProjectFile" }
+        appliedCategories: { type: array, items: { type: string } }
+    McpProjectFile:
+      type: object
+      required: [path, content]
+      properties:
+        path: { type: string }
+        content: { type: string }
     McpCatalogueEntry:
       type: object
       required: [id, name, url, description, categories, languages, scopes, platforms, officialListed, reviewStatus, knowledgeId, sourceRevision, importedAt]
@@ -360,7 +446,7 @@ components:
         count: { type: integer }
     McpCataloguePage:
       type: object
-      required: [items, total, catalogueTotal, page, pageSize, categories, languages, scopes, sourceUrl, sourceRevision, importedAt, knowledgeCount]
+      required: [items, total, catalogueTotal, page, pageSize, categories, priorityCategories, languages, scopes, sourceUrl, sourceRevision, importedAt, knowledgeCount]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/McpCatalogueEntry" } }
         total: { type: integer }
@@ -368,6 +454,7 @@ components:
         page: { type: integer }
         pageSize: { type: integer }
         categories: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
+        priorityCategories: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
         languages: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
         scopes: { type: array, items: { $ref: "#/components/schemas/McpCatalogueFacet" } }
         sourceUrl: { type: string }
@@ -376,12 +463,30 @@ components:
         knowledgeCount: { type: integer }
     McpCatalogueDetail:
       type: object
-      required: [entry, builderBrief, standardsKnowledgeId, sourceUrl]
+      required: [entry, builderBrief, standardsKnowledgeId, sourceUrl, reviewStandards]
       properties:
         entry: { $ref: "#/components/schemas/McpCatalogueEntry" }
         builderBrief: { type: string }
         standardsKnowledgeId: { type: [integer, "null"] }
         sourceUrl: { type: string }
+        reviewStandards: { type: array, items: { $ref: "#/components/schemas/McpCategoryStandard" } }
+    McpCategoryCheck:
+      type: object
+      required: [id, requirement, evidence, acceptanceTest]
+      properties:
+        id: { type: string }
+        requirement: { type: string }
+        evidence: { type: string }
+        acceptanceTest: { type: string }
+    McpCategoryStandard:
+      type: object
+      required: [category, version, summary, knowledgeId, checks]
+      properties:
+        category: { type: string }
+        version: { type: string }
+        summary: { type: string }
+        knowledgeId: { type: [integer, "null"] }
+        checks: { type: array, items: { $ref: "#/components/schemas/McpCategoryCheck" } }
     HealthStatus:
       type: object
       properties:

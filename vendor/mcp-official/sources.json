@@ -1,0 +1,83 @@
+{
+  "organization": "https://github.com/modelcontextprotocol",
+  "specificationRevision": "86f6e0c675afea9a8f233e09b6faf566b126086c",
+  "protocolVersion": "2026-07-28",
+  "sdks": [
+    {
+      "repo": "typescript-sdk",
+      "sourceRevision": "9bc40e903fde15534ec06ff4c1347d47000dbe16"
+    },
+    {
+      "repo": "python-sdk",
+      "sourceRevision": "754254c08fe1c3eda18b69da3d336106fe8d72d6"
+    },
+    {
+      "repo": "go-sdk",
+      "sourceRevision": "7c486efa8223d5f66af8cf7b2ac9bb04a1ee6b91"
+    },
+    {
+      "repo": "csharp-sdk",
+      "sourceRevision": "00adf5489910388749686bee2a6a32ae1b149ba6"
+    },
+    {
+      "repo": "rust-sdk",
+      "sourceRevision": "8d226f421cddbd470651f328f8bf3cea7fbda3b0"
+    },
+    {
+      "repo": "ruby-sdk",
+      "sourceRevision": "9d12f518eac4a53b33f3aedad6381c8d7004d150"
+    },
+    {
+      "repo": "java-sdk",
+      "sourceRevision": "52df9710da97ba3af090050b02781fe9a014164a"
+    },
+    {
+      "repo": "swift-sdk",
+      "sourceRevision": "a0ae212ebf6eab5f754c3129608bc5557637e605"
+    },
+    {
+      "repo": "php-sdk",
+      "sourceRevision": "82e19d114e95671e05e7df7909195f7ace03d90e"
+    },
+    {
+      "repo": "kotlin-sdk",
+      "sourceRevision": "fcc71f6e5f7557de281039a68a5f38102233627d"
+    }
+  ],
+  "assetHashes": {
+    "specification/README.md": "7e98444c73ed5d923a3b02b1247e9cdf678d31a30cc32b1503bdcd906aa984e2",
+    "specification/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "specification/schema.json": "ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203",
+    "specification/architecture.mdx": "9037b342a1f23c056a564a48dda15b70e511dda6d09e96ab0e86f6f9086f9cc3",
+    "specification/transports.mdx": "59cc01897f5efadc1d412007a47df4f19b30725cdeaf264bbaf25e6b6b0aeb51",
+    "specification/stdio.mdx": "6fd49766c40dc093d1f5993ab584bad0a06cbb496c2d3019c50f8fe3c8171e57",
+    "specification/streamable-http.mdx": "22574bf11e004068493787203ce92be1162107cad717bcb805a15780d4fa69c9",
+    "specification/authorization.mdx": "99e7eeaecad5381649e6dca98cb5b47f314bdda9f1d8cd989299e5fe143a913e",
+    "specification/client-registration.mdx": "912365f0c2b859269d25a3e868580d3f222dd94c80dbc5c3b18024bec1e7daff",
+    "specification/authorization-security.mdx": "9b62204a9ff17eb1de8c270975759f0d0c191a3534b8d1ba3939e5948ed08f3f",
+    "specification/tools.mdx": "ed550806a58eb7744b858fb9f26001aa5e55dac9e2babe88317cc81d9d4c490d",
+    "specification/resources.mdx": "10538119019af5f49a2fbc55d5818725175863115dfb273e79ed7f65a18aaf0c",
+    "specification/prompts.mdx": "85e550635bbbbaa90dff8738f98808c62987e8cfce1d75305b55ca43f3c546de",
+    "sdks/typescript-sdk/README.md": "d776beb7f1d0194da22e7d82cc84d869bd4ae805ba5d8283b69f57dec5b64dd6",
+    "sdks/typescript-sdk/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "sdks/python-sdk/README.md": "51552fa66eee9852eb40f5bad68319df90800e88c399c4f404562c570216c05b",
+    "sdks/python-sdk/LICENSE": "5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d",
+    "sdks/go-sdk/README.md": "b139b8fe162c6b79a160d4b0c10ab73b56ed9ae437a7ef21c6d184d7e2e38bab",
+    "sdks/go-sdk/LICENSE": "af679003d933f045393a6a029f43da113f9ae364eac651d9ae268392985580f5",
+    "sdks/csharp-sdk/README.md": "169092bcfb1f6cf722a1e71c93d406c7f727aec06c82aa696d3796987253210b",
+    "sdks/csharp-sdk/LICENSE": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc",
+    "sdks/rust-sdk/README.md": "f37009468b8d7c1c6fe17a83c68fd38bce0b140a5fc1cc70734774370b6435a3",
+    "sdks/rust-sdk/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "sdks/ruby-sdk/README.md": "71305b68055a4587824eebeb36889ea14f52e03ef1866a8e1ba165923270ea04",
+    "sdks/ruby-sdk/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "sdks/java-sdk/README.md": "91ddf4dad6ad32586ba12f0ccb3f88fccc9461736a1c6ed97980c960fae592cb",
+    "sdks/java-sdk/LICENSE": "077f5c1f533a15ec6c67d61b0c09b5df60bb57a1839a7d1fb27faaf7b746195f",
+    "sdks/swift-sdk/README.md": "ad833069a6dbbaa6db3b01a1150b69f013d076ab2c5434ce14b69dd1a050c493",
+    "sdks/swift-sdk/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "sdks/php-sdk/README.md": "2cacc0e634978d864a9561c860e564d576ff07e85089a5be6d0667443a798712",
+    "sdks/php-sdk/LICENSE": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a",
+    "sdks/kotlin-sdk/README.md": "8a8aa430249df40cb8853fb35903e40ec8d2e2addc390b6c6558918035e23965",
+    "sdks/kotlin-sdk/LICENSE": "7c6a686d2b34b86ad8c726e0ac4d76903b525f251d73e617f8db3879fa8f11fc"
+  },
+  "content": "Pinned official specification schema plus README/license SDK source snapshots. Full SDK implementations are obtained through their declared package managers, not vendored here."
+}

@@ -5,6 +5,106 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+export type McpSdkTargetsItem = typeof McpSdkTargetsItem[keyof typeof McpSdkTargetsItem];
+
+
+export const McpSdkTargetsItem = {
+  cloudflare: 'cloudflare',
+  openshell: 'openshell',
+} as const;
+
+export interface McpSdk {
+  language: string;
+  label: string;
+  repository: string;
+  sourceRevision: string;
+  /** @nullable */
+  knowledgeId: number | null;
+  targets: McpSdkTargetsItem[];
+  tier: number;
+}
+
+export interface McpSdkDirectory {
+  organizationUrl: string;
+  specificationRepository: string;
+  specificationRevision: string;
+  protocolVersion: string;
+  /** @nullable */
+  specificationKnowledgeId: number | null;
+  sdks: McpSdk[];
+}
+
+export type LanguageMcpPackageInputLanguage = typeof LanguageMcpPackageInputLanguage[keyof typeof LanguageMcpPackageInputLanguage];
+
+
+export const LanguageMcpPackageInputLanguage = {
+  typescript: 'typescript',
+  javascript: 'javascript',
+  python: 'python',
+  go: 'go',
+  csharp: 'csharp',
+  rust: 'rust',
+  ruby: 'ruby',
+  java: 'java',
+  swift: 'swift',
+  php: 'php',
+  kotlin: 'kotlin',
+} as const;
+
+export type LanguageMcpPackageInputTarget = typeof LanguageMcpPackageInputTarget[keyof typeof LanguageMcpPackageInputTarget];
+
+
+export const LanguageMcpPackageInputTarget = {
+  cloudflare: 'cloudflare',
+  openshell: 'openshell',
+} as const;
+
+export interface LanguageMcpPackageInput {
+  /** @minimum 1 */
+  componentId: number;
+  language: LanguageMcpPackageInputLanguage;
+  target: LanguageMcpPackageInputTarget;
+  /** @maxLength 3000 */
+  instructions?: string;
+  /** @maxItems 12 */
+  categories?: string[];
+}
+
+export type LanguageMcpPackageBuildStatus = typeof LanguageMcpPackageBuildStatus[keyof typeof LanguageMcpPackageBuildStatus];
+
+
+export const LanguageMcpPackageBuildStatus = {
+  'not-run': 'not-run',
+} as const;
+
+export type LanguageMcpPackageDeploymentStatus = typeof LanguageMcpPackageDeploymentStatus[keyof typeof LanguageMcpPackageDeploymentStatus];
+
+
+export const LanguageMcpPackageDeploymentStatus = {
+  'not-deployed': 'not-deployed',
+} as const;
+
+export interface McpProjectFile {
+  path: string;
+  content: string;
+}
+
+export interface LanguageMcpPackage {
+  filename: string;
+  archiveBase64: string;
+  sourceDigest: string;
+  language: string;
+  target: string;
+  sdkRepository: string;
+  sdkSourceRevision: string;
+  specificationRevision: string;
+  protocolVersion: string;
+  buildStatus: LanguageMcpPackageBuildStatus;
+  deploymentStatus: LanguageMcpPackageDeploymentStatus;
+  files: McpProjectFile[];
+  appliedCategories: string[];
+}
+
 export type McpCatalogueEntryReviewStatus = typeof McpCatalogueEntryReviewStatus[keyof typeof McpCatalogueEntryReviewStatus];
 
 
@@ -41,6 +141,7 @@ export interface McpCataloguePage {
   page: number;
   pageSize: number;
   categories: McpCatalogueFacet[];
+  priorityCategories: McpCatalogueFacet[];
   languages: McpCatalogueFacet[];
   scopes: McpCatalogueFacet[];
   sourceUrl: string;
@@ -51,12 +152,29 @@ export interface McpCataloguePage {
   knowledgeCount: number;
 }
 
+export interface McpCategoryCheck {
+  id: string;
+  requirement: string;
+  evidence: string;
+  acceptanceTest: string;
+}
+
+export interface McpCategoryStandard {
+  category: string;
+  version: string;
+  summary: string;
+  /** @nullable */
+  knowledgeId: number | null;
+  checks: McpCategoryCheck[];
+}
+
 export interface McpCatalogueDetail {
   entry: McpCatalogueEntry;
   builderBrief: string;
   /** @nullable */
   standardsKnowledgeId: number | null;
   sourceUrl: string;
+  reviewStandards: McpCategoryStandard[];
 }
 
 export interface HealthStatus {
@@ -307,6 +425,7 @@ search?: string;
 category?: string;
 language?: string;
 scope?: string;
+focus?: ListMcpCatalogueFocus;
 /**
  * @minimum 1
  */
@@ -317,4 +436,12 @@ page?: number;
  */
 pageSize?: number;
 };
+
+export type ListMcpCatalogueFocus = typeof ListMcpCatalogueFocus[keyof typeof ListMcpCatalogueFocus];
+
+
+export const ListMcpCatalogueFocus = {
+  all: 'all',
+  priority: 'priority',
+} as const;
 

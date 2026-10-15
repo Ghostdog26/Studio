@@ -30,12 +30,15 @@ import type {
   KnowledgeInput,
   KnowledgeQueryInput,
   KnowledgeUpdate,
+  LanguageMcpPackage,
+  LanguageMcpPackageInput,
   ListMcpCatalogueParams,
   McpCatalogueDetail,
   McpCataloguePage,
   McpComponent,
   McpComponentInput,
   McpComponentUpdate,
+  McpSdkDirectory,
   Overview,
   RuntimeAdapter
 } from './api.schemas';
@@ -1603,4 +1606,157 @@ export function useGetMcpCatalogueEntry<TData = Awaited<ReturnType<typeof getMcp
 
 
 
+
+export const getListMcpSdksUrl = () => {
+
+
+
+
+  return `/api/mcp-sdks`
+}
+
+export const listMcpSdks = async ( options?: Parameters<typeof customFetch>[1]): Promise<McpSdkDirectory> => {
+
+  return customFetch<McpSdkDirectory>(getListMcpSdksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMcpSdksQueryKey = () => {
+    return [
+    `/api/mcp-sdks`
+    ] as const;
+    }
+
+
+export const getListMcpSdksQueryOptions = <TData = Awaited<ReturnType<typeof listMcpSdks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpSdks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMcpSdksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMcpSdks>>> = ({ signal }) => listMcpSdks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMcpSdks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMcpSdksQueryResult = NonNullable<Awaited<ReturnType<typeof listMcpSdks>>>
+export type ListMcpSdksQueryError = ErrorType<unknown>
+
+
+
+export function useListMcpSdks<TData = Awaited<ReturnType<typeof listMcpSdks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpSdks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMcpSdksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateLanguageMcpPackageUrl = () => {
+
+
+
+
+  return `/api/component-packages/generate`
+}
+
+export const generateLanguageMcpPackage = async (languageMcpPackageInput: LanguageMcpPackageInput, options?: Parameters<typeof customFetch>[1]): Promise<LanguageMcpPackage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LanguageMcpPackage>(getGenerateLanguageMcpPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(languageMcpPackageInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateLanguageMcpPackageMutationKey = () => ['generateLanguageMcpPackage'] as const;
+
+export const getGenerateLanguageMcpPackageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateLanguageMcpPackage>>, TError,GenerateLanguageMcpPackageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateLanguageMcpPackage>>, TError,GenerateLanguageMcpPackageMutationVariables, TContext> => {
+
+const mutationKey = getGenerateLanguageMcpPackageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateLanguageMcpPackage>>, GenerateLanguageMcpPackageMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateLanguageMcpPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateLanguageMcpPackageMutationResult = NonNullable<Awaited<ReturnType<typeof generateLanguageMcpPackage>>>
+    export type GenerateLanguageMcpPackageMutationBody = BodyType<LanguageMcpPackageInput>
+    export type GenerateLanguageMcpPackageMutationError = ErrorType<void>
+    export type GenerateLanguageMcpPackageMutationVariables = {data: BodyType<LanguageMcpPackageInput>}
+
+    export const useGenerateLanguageMcpPackage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateLanguageMcpPackage>>, TError,GenerateLanguageMcpPackageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateLanguageMcpPackage>>,
+        TError,
+        GenerateLanguageMcpPackageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateLanguageMcpPackageMutationOptions(options));
+    }
 
