@@ -14,3 +14,9 @@ The user wants the official Model Context Protocol organization pulled into the 
 **Why:** The user explicitly asked for official protocol sources and requested-language server generation rather than bespoke or implicitly TypeScript-only implementations.
 
 **How to apply:** Use pinned official specification/schema and SDK sources, retain shared language-neutral contracts, and preserve the requested language. Make unsupported SDK/runtime combinations explicit. Generated AI source remains a draft until real build/protocol/security checks and human review; source generation must not imply runtime deployment.
+
+The user wants a conversational workflow: a user asks to build a developer MCP tool, the system suggests catalogue-based approaches, the user selects one, and the builder uses official MCP standards and the requested language SDK.
+
+**Why:** The intended product enables enterprise developers and users to initiate builds without having a development team implement each server individually.
+
+**How to apply:** Connect discovery, approach selection, definition creation and language-aware generation as a guided user journey; catalogue browsing and a separate generation form alone do not fulfill this experience.
