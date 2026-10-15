@@ -2,7 +2,7 @@
 // This is not a production workerd deployment or an OpenShell replacement.
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import source from './source.json' with { type: 'json' };
 import { assertPreviewAllowed } from './hosting-policy.mjs';
@@ -17,6 +17,16 @@ if (!assertPreviewAllowed(process.argv.slice(2), process.env.NODE_ENV)) {
   startStatusServer(port);
 } else {
 console.warn('UNSAFE TRUSTED PREVIEW ONLY: ephemeral data, no enterprise isolation or identity guarantees.');
+// Optional development-only knowledge capability, scoped to one explicit workspace/user grant.
+// Never derive or pass a global enterprise bridge key into the unsafe preview.
+const capabilityArg = process.argv.indexOf('--foundry-capability-file');
+const knowledgeCapability = capabilityArg < 0 ? undefined : (() => {
+  const file = process.argv[capabilityArg + 1];
+  if (!file || file.startsWith('--')) throw new Error('--foundry-capability-file requires a private token file.');
+  const token = readFileSync(file, 'utf8').trim();
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('Invalid scoped knowledge capability file.');
+  return token;
+})();
 if (!existsSync(`${root}/packages/workshop-frontend/dist/index.html`)) {
   throw new Error('Run node scripts/cloudflare-os/prepare.mjs before starting Cloudflare OS.');
 }
@@ -38,6 +48,10 @@ const child = spawn(process.execPath, ['scripts/run-dev-server.ts', '--serve-fro
     CLOUDFLARE_OS_NO_BUILD_CACHE: 'true',
     CLOUDFLARE_OS_REPLIT_PREVIEW: 'true',
     WRANGLER_SEND_METRICS: 'false',
+    ...(knowledgeCapability ? {
+      FOUNDRY_API_URL: 'http://localhost:80/api/enterprise/mcp',
+      FOUNDRY_API_TOKEN: knowledgeCapability,
+    } : {}),
   },
 });
 let stopping = false;

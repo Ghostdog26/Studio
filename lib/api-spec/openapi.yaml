@@ -13,6 +13,52 @@ tags:
   - name: workspace
     description: Agent Foundry workspace operations
 paths:
+  /enterprise/mcp:
+    post:
+      operationId: callEnterpriseMcp
+      tags: [workspace]
+      summary: Workspace and user scoped enterprise generation tools
+      description: |
+        JSON-only stateless MCP endpoint. Generated packages use a bearer capability bound
+        to one operator-managed workspace/user grant. Cloudflare OS may use the same scoped
+        token with an identity envelope; both asserted IDs must match the token grant.
+        A trusted server may instead submit x-foundry-signature: HMAC-SHA256 of the envelope
+        JSON body using a purpose-separated bridge key and a timestamp within 60 seconds.
+        Version/template selections must match the grant. No ambient wiki fallback is allowed.
+      parameters:
+        - in: header
+          name: x-foundry-signature
+          required: false
+          schema: { type: string }
+      security:
+        - EnterpriseCapability: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnterpriseMcpInput"
+      responses:
+        "200":
+          description: MCP initialize, tools list, or structured tool result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Invalid request, selection, or candidate
+        "401":
+          description: Missing or invalid scoped credentials
+        "403":
+          description: Workspace, user, tool, document, or selection not granted
+        "409":
+          description: Pinned standards or template changed
+        "502":
+          description: Knowledge or generation dependency failed without unscoped fallback
+        "503":
+          description: Bridge not configured
   /healthz:
     get:
       operationId: healthCheck
@@ -30,7 +76,7 @@ paths:
     get:
       operationId: getOverview
       tags: [workspace]
-      summary: Get workspace overview
+      summary: Get public shared-workspace overview, excluding enterprise documents and scoped query history
       responses:
         "200":
           description: Workspace summary
@@ -42,7 +88,7 @@ paths:
     get:
       operationId: listKnowledge
       tags: [workspace]
-      summary: List knowledge documents
+      summary: List public knowledge documents; restricted and enterprise-granted documents are excluded
       responses:
         "200":
           description: Knowledge documents
@@ -358,6 +404,11 @@ paths:
         "429": { description: Generation capacity reached }
         "502": { description: AI provider unavailable or generated response invalid }
 components:
+  securitySchemes:
+    EnterpriseCapability:
+      type: http
+      scheme: bearer
+      description: Random revocable capability bound to one workspace/user grant, stored hashed.
   parameters:
     Id:
       name: id
@@ -366,6 +417,32 @@ components:
       schema:
         type: integer
   schemas:
+    EnterpriseMcpInput:
+      oneOf:
+        - $ref: "#/components/schemas/EnterpriseRpc"
+        - $ref: "#/components/schemas/EnterpriseBridgeAssertion"
+    EnterpriseRpc:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, id, method]
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:
+          oneOf:
+            - { type: string }
+            - { type: number }
+        method: { type: string, enum: [initialize, tools/list, tools/call] }
+        params: { type: object, additionalProperties: true }
+    EnterpriseBridgeAssertion:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, userId, timestamp, rpc]
+      properties:
+        workspaceId: { type: string, minLength: 1, maxLength: 200 }
+        userId: { type: string, minLength: 1, maxLength: 200 }
+        timestamp: { type: integer }
+        rpc:
+          $ref: "#/components/schemas/EnterpriseRpc"
     McpSdk:
       type: object
       required: [language, label, repository, sourceRevision, knowledgeId, targets, tier]
@@ -645,4 +722,3 @@ components:
         features:
           type: array
           items: { type: string }
-

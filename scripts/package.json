@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "enterprise-standards": "tsx ./src/enterprise-standards.ts",
+    "test:enterprise": "tsx --test ../artifacts/api-server/src/lib/enterprise-auth.test.ts ./src/enterprise-integration.test.ts",
     "cloudflare-os:prepare": "node ./cloudflare-os/prepare.mjs",
     "cloudflare-os:serve": "node ./cloudflare-os/serve.mjs",
     "cloudflare-os:preview": "node ./cloudflare-os/serve.mjs --unsafe-trusted-preview",
@@ -15,5 +17,11 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "@workspace/agent-runtime": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
   }
 }

@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Get workspace overview
+ * @summary Get public shared-workspace overview, excluding enterprise documents and scoped query history
  */
 export const GetOverviewResponse = zod.object({
   "knowledgeCount": zod.number().int(),
@@ -43,7 +43,7 @@ export const GetOverviewResponse = zod.object({
 
 
 /**
- * @summary List knowledge documents
+ * @summary List public knowledge documents; restricted and enterprise-granted documents are excluded
  */
 export const ListKnowledgeResponseItem = zod.object({
   "id": zod.number().int(),
@@ -59,8 +59,6 @@ export const ListKnowledgeResponse = zod.array(ListKnowledgeResponseItem)
 /**
  * @summary Add a knowledge document
  */
-
-
 
 
 export const CreateKnowledgeBody = zod.object({
@@ -86,9 +84,6 @@ export const CreateKnowledgeResponse = zod.object({
 export const UpdateKnowledgeParams = zod.object({
   "id": zod.coerce.number().int()
 })
-
-
-
 
 
 export const UpdateKnowledgeBody = zod.object({
@@ -122,7 +117,6 @@ export const DeleteKnowledgeResponse = zod.void()
  * @summary Query the knowledge base with cached retrieval and reranking
  */
 export const queryKnowledgeBodyQueryMin = 2;
-
 
 
 export const QueryKnowledgeBody = zod.object({
@@ -164,7 +158,6 @@ export const ListAgentsResponse = zod.array(ListAgentsResponseItem)
  */
 
 
-
 export const CreateAgentBody = zod.object({
   "name": zod.string().min(1),
   "description": zod.string(),
@@ -193,8 +186,6 @@ export const CreateAgentResponse = zod.object({
 export const UpdateAgentParams = zod.object({
   "id": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateAgentBody = zod.object({
@@ -251,7 +242,6 @@ export const ListComponentsResponse = zod.array(ListComponentsResponseItem)
  */
 
 
-
 export const CreateComponentBody = zod.object({
   "name": zod.string().min(1),
   "description": zod.string(),
@@ -278,8 +268,6 @@ export const CreateComponentResponse = zod.object({
 export const UpdateComponentParams = zod.object({
   "id": zod.coerce.number().int()
 })
-
-
 
 
 export const UpdateComponentBody = zod.object({
@@ -318,7 +306,6 @@ export const DeleteComponentResponse = zod.void()
  */
 
 
-
 export const DownloadComponentPackageQueryParams = zod.object({
   "id": zod.coerce.number().int().min(1),
   "target": zod.enum(['cloudflare', 'openshell'])
@@ -347,7 +334,6 @@ export const listMcpCatalogueQueryPageDefault = 1;
 
 export const listMcpCatalogueQueryPageSizeDefault = 24;
 export const listMcpCatalogueQueryPageSizeMax = 100;
-
 
 
 export const ListMcpCatalogueQueryParams = zod.object({
@@ -401,9 +387,6 @@ export const ListMcpCatalogueResponse = zod.object({
   "importedAt": zod.coerce.date().nullable(),
   "knowledgeCount": zod.number().int()
 })
-
-
-
 
 
 export const GetMcpCatalogueEntryParams = zod.object({
@@ -462,11 +445,9 @@ export const ListMcpSdksResponse = zod.object({
 })
 
 
-
 export const generateLanguageMcpPackageBodyInstructionsMax = 3000;
 
 export const generateLanguageMcpPackageBodyCategoriesMax = 12;
-
 
 
 export const GenerateLanguageMcpPackageBody = zod.object({
@@ -497,3 +478,38 @@ export const GenerateLanguageMcpPackageResponse = zod.object({
 })
 
 
+/**
+ * JSON-only stateless MCP endpoint. Generated packages use a bearer capability bound
+ * to one operator-managed workspace/user grant. Cloudflare OS may use the same scoped
+ * token with an identity envelope; both asserted IDs must match the token grant.
+ * A trusted server may instead submit x-foundry-signature: HMAC-SHA256 of the envelope
+ * JSON body using a purpose-separated bridge key and a timestamp within 60 seconds.
+ * Version/template selections must match the grant. No ambient wiki fallback is allowed.
+ * @summary Workspace and user scoped enterprise generation tools
+ */
+export const CallEnterpriseMcpHeader = zod.object({
+  "x-foundry-signature": zod.string().optional()
+})
+
+export const CallEnterpriseMcpResponse = zod.record(zod.string(), zod.unknown())
+
+export const callEnterpriseMcpBodyTwoUserIdMax = 200;
+
+export const CallEnterpriseMcpBody = zod.union([zod.object({
+  "jsonrpc": zod.enum(['2.0']),
+  "id": zod.union([zod.string(),zod.number()]),
+  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
+  "params": zod.record(zod.string(), zod.unknown()).optional()
+}),zod.object({
+  "workspaceId": zod.string().min(1).max(callEnterpriseMcpBodyTwoWorkspaceIdMax),
+  "userId": zod.string().min(1).max(callEnterpriseMcpBodyTwoUserIdMax),
+  "timestamp": zod.number().int(),
+  "rpc": zod.object({
+  "jsonrpc": zod.enum(['2.0']),
+  "id": zod.union([zod.string(),zod.number()]),
+  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
+  "params": zod.record(zod.string(), zod.unknown()).optional()
+})
+})])
+
+export const callEnterpriseMcpBodyTwoWorkspaceIdMax = 200;

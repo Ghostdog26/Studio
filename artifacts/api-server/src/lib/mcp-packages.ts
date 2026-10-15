@@ -16,6 +16,23 @@ export interface PackageFile {
   content: string;
 }
 
+const ACCESS_SOURCE = `import { timingSafeEqual } from "node:crypto";
+
+export interface AccessEnv {
+  MCP_ACCESS_TOKEN?: string;
+  FOUNDRY_API_TOKEN?: string;
+}
+
+// An independent inbound credential is mandatory. Never let the server's backend knowledge
+// capability authorize anonymous clients or double as a client credential.
+export function authorizeMcpRequest(authorization: string | null | undefined, env: AccessEnv): 200 | 401 | 503 {
+  const token = env.MCP_ACCESS_TOKEN;
+  if (!token || token.length < 32 || token === env.FOUNDRY_API_TOKEN) return 503;
+  const supplied = new TextEncoder().encode(authorization ?? "");
+  const expected = new TextEncoder().encode(\`Bearer \${token}\`);
+  return supplied.byteLength === expected.byteLength && timingSafeEqual(supplied, expected) ? 200 : 401;
+}
+`;
 function packageSlug(value: string): string {
   const slug = value
     .normalize("NFKD")
@@ -300,6 +317,7 @@ ${htmlSource}
 export interface RuntimeEnv {
   FOUNDRY_API_BASE_URL?: string;
   FOUNDRY_API_TOKEN?: string;
+  MCP_ACCESS_TOKEN?: string;
 }
 
 async function runTool(args: Record<string, unknown>, env: RuntimeEnv) {
@@ -311,18 +329,35 @@ async function runTool(args: Record<string, unknown>, env: RuntimeEnv) {
     };
   }
 
-  const baseUrl = (env.FOUNDRY_API_BASE_URL ?? "http://127.0.0.1:8080/api").replace(/\\/$/, "");
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  if (env.FOUNDRY_API_TOKEN) headers.authorization = \`Bearer \${env.FOUNDRY_API_TOKEN}\`;
-  const response = await fetch(\`\${baseUrl}/knowledge/query\`, {
+  if (!env.FOUNDRY_API_BASE_URL || !env.FOUNDRY_API_TOKEN) {
+    throw new Error("A Foundry API URL and workspace/user-scoped capability token are required.");
+  }
+  const baseUrl = env.FOUNDRY_API_BASE_URL.replace(/\\/$/, "");
+  const apiUrl = new URL(baseUrl);
+  if (apiUrl.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(apiUrl.hostname)) {
+    throw new Error("Foundry capability transport requires HTTPS off loopback.");
+  }
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    authorization: \`Bearer \${env.FOUNDRY_API_TOKEN}\`,
+  };
+  const response = await fetch(\`\${baseUrl}/enterprise/mcp\`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: crypto.randomUUID(), method: "tools/call",
+      params: { name: "foundry.knowledge.query", arguments: { query } },
+    }),
+    redirect: "error",
   });
   if (!response.ok) {
     throw new Error(\`Agent Foundry knowledge query failed with HTTP \${response.status}.\`);
   }
-  const result: unknown = await response.json();
+  const rpc = await response.json() as {
+    error?: unknown; result?: { structuredContent?: Record<string, unknown> };
+  };
+  if (rpc.error || !rpc.result?.structuredContent) throw new Error("Invalid Foundry MCP response.");
+  const result = rpc.result.structuredContent;
   return {
     content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     structuredContent: result as Record<string, unknown>,
@@ -435,11 +470,18 @@ export default defineConfig({
       path: "src/worker.ts",
       content: `import { createMcpHandler } from "@modelcontextprotocol/server";
 import { createServer, type RuntimeEnv } from "./server";
+import { authorizeMcpRequest } from "./access";
 
 export interface Env extends RuntimeEnv {}
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const status = authorizeMcpRequest(request.headers.get("authorization"), env);
+    if (status !== 200) {
+      return new Response(status === 503 ? "MCP access policy is not configured." : "Unauthorized.", {
+        status, headers: { "cache-control": "no-store", "www-authenticate": "Bearer" },
+      });
+    }
     return createMcpHandler(() => createServer(env)).fetch(request);
   },
 } satisfies ExportedHandler<Env>;
@@ -475,7 +517,7 @@ export default defineConfig({
     {
       path: ".dev.vars.example",
       content:
-        "FOUNDRY_API_BASE_URL=http://127.0.0.1:8080/api\nFOUNDRY_API_TOKEN=\n",
+        "FOUNDRY_API_BASE_URL=http://localhost/api\nFOUNDRY_API_TOKEN=\nMCP_ACCESS_TOKEN=\n",
     },
     {
       path: "tsconfig.json",
@@ -488,7 +530,7 @@ export default defineConfig({
             strict: true,
             skipLibCheck: true,
             noEmit: true,
-            types: ["@cloudflare/workers-types"],
+            types: ["@cloudflare/workers-types", "node"],
           },
           include: ["src/**/*.ts"],
         },
@@ -575,6 +617,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import cors from "cors";
 import type { Request, Response } from "express";
 import { createServer } from "./server.js";
+import { authorizeMcpRequest } from "./access.js";
 
 const port = Number(process.env.PORT ?? "3001");
 const host = process.env.MCP_HOST ?? "127.0.0.1";
@@ -586,6 +629,16 @@ const allowedHosts = process.env.MCP_ALLOWED_HOSTS?.split(",").map((value) => va
 const app = createMcpExpressApp({ host, ...(allowedHosts?.length ? { allowedHosts } : {}) });
 app.use(cors());
 app.all("/mcp", async (req: Request, res: Response) => {
+  const status = authorizeMcpRequest(req.get("authorization"), {
+    MCP_ACCESS_TOKEN: process.env.MCP_ACCESS_TOKEN,
+    FOUNDRY_API_TOKEN: process.env.FOUNDRY_API_TOKEN,
+  });
+  if (status !== 200) {
+    res.status(status).set({ "cache-control": "no-store", "www-authenticate": "Bearer" }).json({
+      error: status === 503 ? "MCP access policy is not configured." : "Unauthorized.",
+    });
+    return;
+  }
   const server = createServer({
     FOUNDRY_API_BASE_URL: process.env.FOUNDRY_API_BASE_URL,
     FOUNDRY_API_TOKEN: process.env.FOUNDRY_API_TOKEN,
@@ -645,7 +698,7 @@ CMD ["node", "dist/main.js"]
     {
       path: ".env.example",
       content:
-        "PORT=3001\nMCP_HOST=127.0.0.1\nMCP_ALLOWED_HOSTS=localhost,127.0.0.1\nFOUNDRY_API_BASE_URL=http://127.0.0.1:8080/api\nFOUNDRY_API_TOKEN=\n",
+        "PORT=3001\nMCP_HOST=127.0.0.1\nMCP_ALLOWED_HOSTS=localhost,127.0.0.1\nFOUNDRY_API_BASE_URL=http://localhost/api\nFOUNDRY_API_TOKEN=\nMCP_ACCESS_TOKEN=\n",
     },
     ...uiFiles,
     {
@@ -655,7 +708,7 @@ CMD ["node", "dist/main.js"]
   ];
 
   const files = target === "cloudflare" ? cloudflareFiles : openshellFiles;
-  return [...files, {
+  return [...files, { path: "src/access.ts", content: ACCESS_SOURCE }, {
     path: ".gitignore",
     content: "node_modules/\ndist/\n.wrangler/\n.env\n.dev.vars\n",
   }];
@@ -701,13 +754,14 @@ The MCP endpoint is \`http://localhost:5173/mcp\`. It calls Agent Foundry's know
 npm run deploy
 \`\`\`
 
-Authenticate Wrangler with your Cloudflare account first. Set the production API URL in \`wrangler.jsonc\` and configure \`FOUNDRY_API_TOKEN\` as a Worker secret if the API requires it:
+Authenticate Wrangler with your Cloudflare account first. Set the API URL in \`wrangler.jsonc\` and configure the required workspace/user-scoped \`FOUNDRY_API_TOKEN\` as a Worker secret:
 
 \`\`\`sh
 npx wrangler secret put FOUNDRY_API_TOKEN
+npx wrangler secret put MCP_ACCESS_TOKEN
 \`\`\`
 
-Do not expose an unauthenticated Agent Foundry API to the public internet. The starter does not add OAuth or tenant authorization; add that before production use.
+Provision the knowledge capability with the operator enterprise-standards grant command. Configure MCP_ACCESS_TOKEN as a separate cryptographically random secret of at least 32 characters and distribute it only to clients authorized for this server's granted knowledge. Clients must send Authorization: Bearer <MCP_ACCESS_TOKEN>. Missing access configuration returns 503; anonymous or invalid credentials return 401 before the MCP handler runs. Reusing FOUNDRY_API_TOKEN as the inbound credential is rejected. Use HTTPS; rotate both credentials independently. For per-user SSO, replace this explicit shared-client policy with a verified identity policy before broad enterprise rollout.
 `;
 }
 
@@ -750,7 +804,7 @@ Set \`FOUNDRY_API_BASE_URL\` and \`FOUNDRY_API_TOKEN\` in the sandbox environmen
 
 The generated \`${tool}\` tool calls Agent Foundry's knowledge query API when the saved schema includes a string \`query\` property. Other schemas return the validated arguments as structured content, ready for you to replace with a domain-specific handler in \`src/server.ts\`.
 
-This starter does not add OAuth or tenant authorization. Do not expose a development API or send enterprise data until the API is protected with your access-control policy.
+Knowledge calls use the scoped enterprise MCP endpoint, not the legacy wiki API. A revocable workspace/user capability is required in FOUNDRY_API_TOKEN; provision it with the operator enterprise-standards grant command. Configure a separate cryptographically random MCP_ACCESS_TOKEN (at least 32 characters) for clients authorized for this server's granted knowledge. Every client must send Authorization: Bearer <MCP_ACCESS_TOKEN>. Missing access configuration returns 503; anonymous/invalid callers return 401 before the MCP handler runs. Reusing the backend knowledge capability as the inbound credential is rejected. Use HTTPS outside loopback and rotate both credentials independently. Replace the explicit shared-client policy with verified per-user identity before broad enterprise SSO rollout.
 `;
 }
 

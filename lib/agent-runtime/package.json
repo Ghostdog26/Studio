@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./enterprise-standards": "./src/enterprise-standards.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:"
   }

@@ -5,6 +5,7 @@
 .local
 
 generated-artifacts
+vendor/cloudflare-os/**/.dev.vars*
 vendor/cloudflare-os/.wrangler
 vendor/cloudflare-os/.vp
 vendor/cloudflare-os/.vite

@@ -61,6 +61,7 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 - `pnpm --filter @workspace/scripts run cloudflare-os:preview` explicitly opts into the unsafe trusted-development Wrangler/workerd runner; it is not production hosting and must not receive production data/secrets.
 - `pnpm --filter @workspace/scripts run cloudflare-os:production-check` deliberately fails with concrete hosting blockers; `cloudflare-os:test` verifies the safety gate.
 - Its accounts and local Durable Object storage are separate from Agent Foundry's PostgreSQL data. It does not make the Cloudflare execution adapter connected.
+- Enterprise creation uses `/foundry <version> <template> <request>` in Cloudflare OS chat after an operator publishes standards and grants specific wiki documents to the workspace/user pair. The hosting safety gate remains in force; only use test knowledge with an explicitly enabled trusted preview. See `docs/enterprise-factory.md`.
 - See `docs/cloudflare-os-replit.md` for hosting limitations and `docs/enterprise-factory.md` for the intended knowledge → generation → human approval → fixed-release workflow.
 
 ## MCP reference catalogue

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateAgentBody,
@@ -40,6 +40,7 @@ import {
 import { runtimeAdapters } from "@workspace/agent-runtime";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { generateMcpPackage } from "../lib/mcp-packages";
+import { publicKnowledgeCondition } from "../lib/knowledge-access";
 
 const router: IRouter = Router();
 
@@ -66,7 +67,7 @@ router.get("/overview", async (_req, res): Promise<void> => {
     recentComponents,
     recentQueries,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(knowledgeDocumentsTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(knowledgeDocumentsTable).where(publicKnowledgeCondition()),
     db.select({ count: sql<number>`count(*)::int` }).from(agentsTable),
     db.select({ count: sql<number>`count(*)::int` }).from(mcpComponentsTable),
     db
@@ -74,10 +75,12 @@ router.get("/overview", async (_req, res): Promise<void> => {
         total: sql<number>`count(*)::int`,
         cached: sql<number>`count(*) filter (where ${knowledgeQueryHistoryTable.cached})::int`,
       })
-      .from(knowledgeQueryHistoryTable),
+      .from(knowledgeQueryHistoryTable)
+      .where(isNull(knowledgeQueryHistoryTable.workspaceId)),
     db
       .select({ id: knowledgeDocumentsTable.id, title: knowledgeDocumentsTable.title, createdAt: knowledgeDocumentsTable.updatedAt })
       .from(knowledgeDocumentsTable)
+      .where(publicKnowledgeCondition())
       .orderBy(desc(knowledgeDocumentsTable.updatedAt))
       .limit(5),
     db
@@ -93,6 +96,7 @@ router.get("/overview", async (_req, res): Promise<void> => {
     db
       .select({ id: knowledgeQueryHistoryTable.id, query: knowledgeQueryHistoryTable.query, createdAt: knowledgeQueryHistoryTable.createdAt })
       .from(knowledgeQueryHistoryTable)
+      .where(isNull(knowledgeQueryHistoryTable.workspaceId))
       .orderBy(desc(knowledgeQueryHistoryTable.createdAt))
       .limit(5),
   ]);
@@ -149,6 +153,7 @@ router.get("/knowledge", async (_req, res): Promise<void> => {
   const items = await db
     .select()
     .from(knowledgeDocumentsTable)
+    .where(publicKnowledgeCondition())
     .orderBy(desc(knowledgeDocumentsTable.updatedAt));
   res.json(ListKnowledgeResponse.parse(items));
 });
@@ -181,7 +186,7 @@ router.patch("/knowledge/:id", async (req, res): Promise<void> => {
   const [item] = await db
     .update(knowledgeDocumentsTable)
     .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(knowledgeDocumentsTable.id, params.data.id))
+    .where(and(eq(knowledgeDocumentsTable.id, params.data.id), publicKnowledgeCondition()))
     .returning();
   if (!item) {
     res.status(404).json({ error: "Knowledge document not found." });
@@ -199,7 +204,7 @@ router.delete("/knowledge/:id", async (req, res): Promise<void> => {
   }
   const [item] = await db
     .delete(knowledgeDocumentsTable)
-    .where(eq(knowledgeDocumentsTable.id, params.data.id))
+    .where(and(eq(knowledgeDocumentsTable.id, params.data.id), publicKnowledgeCondition()))
     .returning({ id: knowledgeDocumentsTable.id });
   if (!item) {
     res.status(404).json({ error: "Knowledge document not found." });
@@ -434,13 +439,24 @@ router.post("/knowledge/query", async (req, res): Promise<void> => {
   }
 
   const query = parsed.data.query.trim();
+  res.json(await queryKnowledge(query));
+});
+
+// Only trusted server callers supply scope; it is never accepted from the legacy request body.
+export async function queryKnowledge(
+  query: string,
+  scope?: { workspaceId: string; userId: string; documentIds: number[]; standardsDigest: string },
+) {
   const normalizedQuery = query.toLowerCase().replace(/\s+/g, " ");
-  const queryHash = createHash("sha256").update(normalizedQuery).digest("hex");
+  const queryHash = createHash("sha256").update(scope
+    ? JSON.stringify(["enterprise-v1", scope.workspaceId, scope.userId,
+        scope.standardsDigest, [...scope.documentIds].sort((a, b) => a - b), normalizedQuery])
+    : normalizedQuery).digest("hex");
   const now = new Date();
   await db
     .delete(knowledgeQueryCacheTable)
     .where(lt(knowledgeQueryCacheTable.expiresAt, now));
-  const [cached] = await db
+  const cachedRows = await db
     .select()
     .from(knowledgeQueryCacheTable)
     .where(
@@ -450,27 +466,41 @@ router.post("/knowledge/query", async (req, res): Promise<void> => {
       ),
     )
     .limit(1);
+  let cached: typeof knowledgeQueryCacheTable.$inferSelect | undefined = cachedRows[0];
 
+  // Recheck public visibility on cache hits: classification can change after a legacy cache
+  // entry was computed, including a query that raced with grant provisioning.
+  if (cached && !scope && cached.sources.length) {
+    const publicSources = await db.select({ id: knowledgeDocumentsTable.id }).from(knowledgeDocumentsTable)
+      .where(and(inArray(knowledgeDocumentsTable.id, cached.sources.map(source => source.id)), publicKnowledgeCondition()));
+    const allowed = new Set(publicSources.map(source => source.id));
+    if (cached.sources.some(source => !allowed.has(source.id))) {
+      await db.delete(knowledgeQueryCacheTable).where(eq(knowledgeQueryCacheTable.id, cached.id));
+      cached = undefined;
+    }
+  }
+  const historyScope = scope ? { workspaceId: scope.workspaceId, userId: scope.userId } : {};
   if (cached) {
     await Promise.all([
       db
         .update(knowledgeQueryCacheTable)
         .set({ hitCount: sql`${knowledgeQueryCacheTable.hitCount} + 1` })
         .where(eq(knowledgeQueryCacheTable.id, cached.id)),
-      db.insert(knowledgeQueryHistoryTable).values({ query, cached: true }),
+      db.insert(knowledgeQueryHistoryTable).values({ query, cached: true, ...historyScope }),
     ]);
-    res.json(
-      QueryKnowledgeResponse.parse({
+    return QueryKnowledgeResponse.parse({
         answer: cached.answer,
         sources: cached.sources,
         cached: true,
         reranked: true,
-      }),
-    );
-    return;
+      });
   }
 
-  const documents = await db.select().from(knowledgeDocumentsTable);
+  const documents = scope
+    ? scope.documentIds.length
+      ? await db.select().from(knowledgeDocumentsTable).where(inArray(knowledgeDocumentsTable.id, scope.documentIds))
+      : []
+    : await db.select().from(knowledgeDocumentsTable).where(publicKnowledgeCondition());
   const ranked = rankDocuments(query, documents);
   const sources = ranked.map(({ document, score }) => ({
     id: document.id,
@@ -527,17 +557,15 @@ router.post("/knowledge/query", async (req, res): Promise<void> => {
           expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         },
       }),
-    db.insert(knowledgeQueryHistoryTable).values({ query, cached: false }),
+    db.insert(knowledgeQueryHistoryTable).values({ query, cached: false, ...historyScope }),
   ]);
 
-  res.json(
-    QueryKnowledgeResponse.parse({
+  return QueryKnowledgeResponse.parse({
       answer,
       sources,
       cached: false,
       reranked: true,
-    }),
-  );
-});
+    });
+}
 
 export default router;

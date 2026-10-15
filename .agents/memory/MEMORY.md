@@ -1,3 +1,4 @@
 - [Portable enterprise runtime](portable-enterprise-runtime.md) — provider-neutral definitions for Cloudflare and NVIDIA OpenShell; generation is separate from connected deployment.
 - [Cloudflare OS hosting](cloudflare-os-hosting.md) — distinguish development preview from production hosting; cached build execution and local admin assumptions need care.
 - [MCP standardization priorities](mcp-standardization-priorities.md) — twelve categories need extra rigor; official SDK sources must preserve the user's requested server language.
+- [Enterprise knowledge boundary](enterprise-boundary.md) — shared demo access and workspace ownership do not authorize collaborators' enterprise knowledge.

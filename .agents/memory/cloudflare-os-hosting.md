@@ -9,12 +9,6 @@ Upstream Cloudflare OS has a complete Wrangler/workerd development runner, but i
 
 **How to apply:** Recheck upstream's current self-hosting guidance when making production changes; do not equate a local-stack preview with persistent, secure enterprise hosting.
 
-Cached upstream Vite+ tasks caused native compiler and esbuild executable `EBUSY` failures in this Replit environment, while direct execution worked. Use uncached tasks or direct builds rather than changing compiler dependencies to compensate.
-
-**Why:** This was observed with both the pinned native TypeScript compiler and esbuild; the same binaries executed successfully outside the cached task runner.
-
-**How to apply:** If updating upstream restores cached execution, verify it explicitly before re-enabling cache. Preserve dependency lockfiles rather than treating this as a package-version failure.
-
 The upstream development runner assigns administrative access to an account named `admin`. A publicly reachable preview must not inherit that implicit username grant.
 
 **Why:** A local-development assumption is not an authorization policy for shared infrastructure.

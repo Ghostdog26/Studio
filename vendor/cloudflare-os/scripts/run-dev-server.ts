@@ -12,7 +12,7 @@
 //   VITE_BACKEND_HOST=localhost:9000  Also pass --port 9000 to wrangler dev.
 
 import {
-  existsSync, readFileSync, writeFileSync, readdirSync, statSync,
+  existsSync, readFileSync, writeFileSync, readdirSync, statSync, chmodSync,
 } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 import { connect } from "node:net";
@@ -560,6 +560,7 @@ for (const gk of gatekeepers) {
   //   ENABLE_CLOUDFLARE_LIMITS=true DAILY_LLM_CALL_LIMIT=1 pnpm dev-server
   // without editing any config files.
   const OPTIONAL_FEATURE_VARS = [
+    "FOUNDRY_API_URL",
     "DISABLE_PASSWORD_AUTH", "AUTH_GATEKEEPERS", "ENABLE_CLOUDFLARE_LIMITS", "PUBLIC_BASE_URL",
     "DAILY_LLM_CALL_LIMIT", "MINIMUM_CLOUDFLARE_BALANCE",
     // Platform AI Gateway — makes the cross-provider model catalog available. CF_AI_GATEWAY
@@ -575,6 +576,17 @@ for (const gk of gatekeepers) {
   // they are injected into the gatekeeper Workers (see SHARED_GATEKEEPER_CREDS below).
   for (const name of OPTIONAL_FEATURE_VARS) {
     if (process.env[name] !== undefined) config.vars[name] = process.env[name];
+  }
+  // Keep the signing key out of vars: Wrangler prints plain vars in startup diagnostics.
+  // Its .dev.vars loader treats these bindings as secrets and redacts their values.
+  const secretPath = join(ROOT, "packages", "workshop-backend", ".dev.vars");
+  if (existsSync(secretPath) || process.env.FOUNDRY_BRIDGE_KEY || process.env.FOUNDRY_API_TOKEN) {
+    const existing = existsSync(secretPath) ? readFileSync(secretPath, "utf8") : "";
+    const retained = existing.split("\n").filter(line => !/^\s*FOUNDRY_(BRIDGE_KEY|API_TOKEN)\s*=/.test(line)).join("\n").trimEnd();
+    const keyLine = process.env.FOUNDRY_BRIDGE_KEY ? `FOUNDRY_BRIDGE_KEY=${process.env.FOUNDRY_BRIDGE_KEY}\n` : "";
+    const tokenLine = process.env.FOUNDRY_API_TOKEN ? `FOUNDRY_API_TOKEN=${process.env.FOUNDRY_API_TOKEN}\n` : "";
+    writeFileSync(secretPath, `${retained}\n${keyLine}${tokenLine}`, { mode: 0o600 });
+    chmodSync(secretPath, 0o600);
   }
 
   // Account connect flows post their completion ticket to the Workshop *origin* named here (see

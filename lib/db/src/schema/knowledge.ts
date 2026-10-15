@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -6,6 +6,8 @@ export const knowledgeDocumentsTable = pgTable("knowledge_documents", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   content: text("content").notNull(),
+  // Operator-managed classification. Never accept this field from shared wiki HTTP inputs.
+  enterpriseRestricted: boolean("enterprise_restricted").notNull().default(false),
   source: text("source").notNull().default("Workspace wiki"),
   tags: text("tags").array().notNull().default([]),
   updatedAt: timestamp("updated_at", { withTimezone: true })
