@@ -24,3 +24,4 @@ export * from "./query-cache";
 export * from "./query-history";
 export * from "./mcp-catalogue";
 export * from "./enterprise-standards";
+export * from "./mcp-discovery";

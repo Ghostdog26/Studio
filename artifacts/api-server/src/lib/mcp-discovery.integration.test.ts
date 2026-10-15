@@ -6,12 +6,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 import express from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, pool, knowledgeDocumentsTable, enterpriseStandardsTable, enterpriseGrantsTable, enterpriseDocumentGrantsTable } from "@workspace/db";
 import { ListMcpDiscoveryEvidenceResponse, RefreshMcpDiscoveryEvidenceResponse } from "@workspace/api-zod";
 import { openMetadataEnterpriseStandard } from "@workspace/agent-runtime/enterprise-standards";
 import { createMcpDiscoveryRouter } from "../routes/mcp-discovery";
 import { DiscoveryFailure } from "./mcp-discovery-client";
+import { createDiscoveryCoordinator } from "./mcp-discovery-coordination";
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
 
 test("discovery API isolates users, expires evidence, rejects arbitrary RPC and discards revoked results", async (t) => {
   const fixtureId = randomBytes(6).toString("hex");
@@ -24,10 +31,78 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
   const oldPolicy = process.env.MCP_DISCOVERY_POLICY_FILE;
   let documentId: number | undefined;
   let server: Server | undefined;
+  let secondServer: Server | undefined;
   let discoveries = 0;
   let mode: "success" | "revoke" | "denied" | "failed" = "success";
+  let beforeReturn: (() => Promise<void>) | undefined;
   const inventory = { serverInfo: { name: "fixture", version: "fixture-1" }, protocolVersion: "2025-03-26", tools: [], resources: [], prompts: [] };
+  const rateKey = createHash("sha256").update(JSON.stringify({ workspaceId, userId })).digest("hex");
+  // DB time, not Date.now mocks, governs admission. Expire only this fixture's cooldown.
+  const clearRate = () => db.execute(sql`
+    UPDATE mcp_discovery_coordination SET state = jsonb_set(state, '{attempts}',
+      COALESCE((SELECT jsonb_agg(a) FROM jsonb_array_elements(state->'attempts') a
+        WHERE a->>'user' <> ${rateKey}), '[]'::jsonb))
+    WHERE id = 'discovery'
+  `);
   try {
+    await t.test("two independent coordinators atomically share slots, rate caps and expiring crash leases", async () => {
+      const coordinationId = `test-${fixtureId}`;
+      await db.execute(sql`INSERT INTO mcp_discovery_coordination (id) VALUES (${coordinationId})`);
+      const one = createDiscoveryCoordinator(coordinationId);
+      const two = createDiscoveryCoordinator(coordinationId);
+      const expire = async (field: "leases" | "attempts" | "globalAttempts") => {
+        // Simulate elapsed DB time without waiting 30/60 seconds or using worker clocks.
+        const expired = field === "globalAttempts"
+          ? sql`COALESCE((SELECT jsonb_agg(0) FROM jsonb_array_elements(state->${field})), '[]'::jsonb)`
+          : sql`COALESCE((SELECT jsonb_agg(jsonb_set(a, '{until}', '0'::jsonb))
+              FROM jsonb_array_elements(state->${field}) a), '[]'::jsonb)`;
+        await db.execute(sql`UPDATE mcp_discovery_coordination SET state = jsonb_set(state, ${`{${field}}`}::text[],
+          ${expired}) WHERE id = ${coordinationId}`);
+      };
+      try {
+        const sameUser = await Promise.all([one.acquire("same-user"), two.acquire("same-user")]);
+        assert.equal(sameUser.filter(Boolean).length, 1);
+        await one.finish(sameUser.find(Boolean)!);
+        assert.equal(await two.acquire("same-user"), null, "release must not erase the cooldown");
+        await expire("attempts");
+        await expire("globalAttempts");
+        const admissions = await Promise.all(Array.from({ length: 8 }, (_, i) => (i % 2 ? one : two).acquire(`user-${i}`)));
+        const admitted = admissions.filter(l => l !== null);
+        assert.equal(admitted.length, 4, "global concurrency must not multiply with replicas");
+        assert.equal(await two.acquire("blocked-user"), null);
+        // Crashed workers never release. Make their lease deadlines past, retaining their IDs.
+        await db.execute(sql`UPDATE mcp_discovery_coordination SET state = jsonb_set(state, '{leases}',
+          (SELECT jsonb_agg(jsonb_set(l, '{until}', '0'::jsonb)) FROM jsonb_array_elements(state->'leases') l))
+          WHERE id = ${coordinationId}`);
+        const recovered = await two.acquire("recovered-user");
+        assert.ok(recovered);
+        assert.equal(await one.finish(admitted[0]!), false, "late completion is fenced");
+        assert.equal(await one.acquire("recovered-user"), null, "late release cannot remove a successor");
+        await two.finish(recovered);
+        await expire("leases");
+        await expire("attempts");
+        await expire("globalAttempts");
+        for (let i = 0; i < 59; i++) {
+          const lease = await (i % 2 ? one : two).acquire(`rate-${i}`);
+          assert.ok(lease);
+          assert.equal(await one.finish(lease), true);
+        }
+        const rateRace = await Promise.all([one.acquire("boundary-one"), two.acquire("boundary-two")]);
+        assert.equal(rateRace.filter(Boolean).length, 1, "only one replica can admit the last global-rate slot");
+        await two.finish(rateRace.find(Boolean)!);
+        assert.equal(await two.acquire("global-rate-blocked"), null, "global rate is shared even with free slots");
+        await expire("globalAttempts");
+        const afterWindow = await two.acquire("global-rate-blocked");
+        assert.ok(afterWindow);
+        await two.finish(afterWindow);
+        await db.execute(sql`DELETE FROM mcp_discovery_coordination WHERE id = ${coordinationId}`);
+        await assert.rejects(one.revision(), /unavailable/);
+        await assert.rejects(two.acquire("no-fallback"), /unavailable/);
+        await assert.rejects(one.finish(afterWindow), /unavailable/);
+      } finally {
+        await db.execute(sql`DELETE FROM mcp_discovery_coordination WHERE id = ${coordinationId}`);
+      }
+    });
     const [document] = await db.insert(knowledgeDocumentsTable).values({
       title: "Fictional discovery evidence", content: "Fixture only; not a real enterprise instance.",
       source: `discovery-test-${fixtureId}`, enterpriseRestricted: true, tags: ["fixture"],
@@ -63,6 +138,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
         if (mode === "revoke") await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
         if (mode === "denied") throw new DiscoveryFailure("remote-denied");
         if (mode === "failed") throw new Error("Untrusted upstream failure must not be returned");
+        await beforeReturn?.();
         return inventory;
       }));
       // Private test harness only; no application workflow or enterprise network.
@@ -90,21 +166,107 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     assert.equal(verified.approvedForInvocation, false);
     assert.ok(verified.expiresAt.getTime() <= Date.now() + 300000);
     assert.equal(discoveries, 1);
+    const secondApp = express();
+    secondApp.use(express.json());
+    secondApp.use(createMcpDiscoveryRouter(async () => { discoveries++; return inventory; }));
+    secondServer = createServer(secondApp);
+    await new Promise<void>(resolve => secondServer!.listen(0, "127.0.0.1", resolve));
+    const secondUrl = `http://127.0.0.1:${(secondServer.address() as { port: number }).port}/enterprise/mcp-discovery`;
+    const secondCall = (method = "GET") => fetch(secondUrl + (method === "POST" ? "/fixture" : ""), {
+      method, headers: { Authorization: `Bearer ${token}`, Connection: "close" },
+    });
+    assert.equal((await secondCall("POST")).status, 429, "another replica shares the cooldown");
+    assert.equal(discoveries, 1);
     assert.equal((await results())[0]!.status, "verified");
     assert.equal((await call("/fixture", "POST")).status, 429);
     assert.equal(discoveries, 1);
+    await t.test("another API instance cannot start while the user's first request holds a lease", async () => {
+      const started = deferred();
+      const held = deferred();
+      beforeReturn = async () => { started.resolve(); await held.promise; };
+      await clearRate();
+      const pending = call("/fixture", "POST");
+      try {
+        await started.promise;
+        await clearRate(); // Prove concurrency fencing independently of the cooldown.
+        assert.equal((await secondCall("POST")).status, 429);
+      } finally {
+        held.resolve();
+        beforeReturn = undefined;
+        assert.equal((await pending).status, 200);
+      }
+    });
     const realNow = Date.now();
     t.mock.method(Date, "now", () => realNow + 6 * 60000);
     assert.equal((await results())[0]!.status, "stale");
     assert.equal((await results())[0]!.inventory, null);
     t.mock.restoreAll();
     mode = "failed";
+    await clearRate();
     t.mock.method(Date, "now", () => realNow + 61000);
     const failedRefresh = RefreshMcpDiscoveryEvidenceResponse.parse(await (await call("/fixture", "POST")).json());
     assert.equal(failedRefresh.status, "unknown");
     assert.equal(failedRefresh.inventory, null, "failed refresh must not serve the previous verified inventory");
     t.mock.restoreAll();
     mode = "success";
+    await t.test("an oversized inventory fails explicitly without retaining its payload", async () => {
+      await clearRate();
+      const name = inventory.serverInfo.name;
+      beforeReturn = async () => { inventory.serverInfo.name = "x".repeat(1024 * 1024); };
+      try {
+        const result = RefreshMcpDiscoveryEvidenceResponse.parse(await (await call("/fixture", "POST")).json());
+        assert.equal(result.status, "unknown");
+        assert.equal(result.reason, "incomplete-discovery");
+        assert.equal(result.inventory, null);
+        assert.equal((await results())[0]!.inventory, null);
+      } finally {
+        inventory.serverInfo.name = name;
+        beforeReturn = undefined;
+      }
+    });
+    await t.test("revocation and restoration cannot resurrect evidence on either replica", async () => {
+      const secondResults = async () => ListMcpDiscoveryEvidenceResponse.parse(await (await secondCall()).json()).results;
+      await clearRate();
+      assert.equal((await secondCall("POST")).status, 200);
+      assert.equal((await secondResults())[0]!.status, "verified");
+      // No reads occur during revocation, so invalidating only on a denied read is insufficient.
+      await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
+      await db.insert(enterpriseDocumentGrantsTable).values({ workspaceId, userId, documentId: documentId! });
+      assert.equal((await secondResults())[0]!.status, "unknown");
+      assert.equal((await secondResults())[0]!.inventory, null);
+      assert.equal((await results())[0]!.inventory, null);
+      await clearRate();
+      await secondCall("POST");
+      await db.update(enterpriseGrantsTable).set({ enabled: false }).where(eq(enterpriseGrantsTable.workspaceId, workspaceId));
+      await db.update(enterpriseGrantsTable).set({ enabled: true }).where(eq(enterpriseGrantsTable.workspaceId, workspaceId));
+      assert.equal((await secondResults())[0]!.status, "unknown");
+      await clearRate();
+      await secondCall("POST");
+      await writeFile(policyPath, JSON.stringify({ version: "1", approvals: [] }));
+      await savePolicy();
+      assert.equal((await secondResults())[0]!.status, "unknown", "restoring identical policy JSON cannot revive evidence");
+    });
+    await t.test("late worker results and mid-request revoke/restore are discarded", async () => {
+      await clearRate();
+      beforeReturn = async () => {
+        await db.execute(sql`UPDATE mcp_discovery_coordination SET state = jsonb_set(state, '{leases}',
+          (SELECT jsonb_agg(CASE WHEN l->>'user' = ${rateKey} THEN jsonb_set(l, '{until}', '0'::jsonb) ELSE l END)
+            FROM jsonb_array_elements(state->'leases') l)) WHERE id = 'discovery'`);
+      };
+      assert.equal((await call("/fixture", "POST")).status, 403);
+      assert.equal((await results())[0]!.inventory, null);
+      await clearRate();
+      beforeReturn = async () => {
+        await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
+        await db.insert(enterpriseDocumentGrantsTable).values({ workspaceId, userId, documentId: documentId! });
+      };
+      try {
+        assert.equal((await call("/fixture", "POST")).status, 403);
+        assert.equal((await results())[0]!.inventory, null);
+      } finally {
+        beforeReturn = undefined;
+      }
+    });
     await db.update(knowledgeDocumentsTable).set({ content: "Changed deployment evidence." }).where(eq(knowledgeDocumentsTable.id, documentId));
     assert.equal((await results())[0]!.status, "unknown");
     await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
@@ -112,6 +274,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     assert.equal((await results())[0]!.inventory, null);
     assert.equal((await call("/fixture", "POST")).status, 403);
     await db.insert(enterpriseDocumentGrantsTable).values({ workspaceId, userId, documentId });
+    assert.equal((await results())[0]!.status, "unknown", "restored permissions cannot revive old evidence");
     approval = { ...approval, expiresAt: new Date(Date.now() - 1).toISOString() };
     await savePolicy();
     assert.equal((await results())[0]!.status, "stale");
@@ -125,6 +288,8 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     for (const failureMode of ["denied", "failed"] as const) {
       mode = failureMode;
       await startHarness();
+      assert.equal((await call("/fixture", "POST")).status, 429, "restarting a worker cannot reset limits");
+      await clearRate();
       const result = RefreshMcpDiscoveryEvidenceResponse.parse(await (await call("/fixture", "POST")).json());
       assert.equal(result.status, mode === "denied" ? "denied" : "unknown");
       assert.equal(result.inventory, null);
@@ -132,6 +297,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     }
     mode = "revoke";
     await startHarness();
+    await clearRate();
     assert.equal((await call("/fixture", "POST")).status, 403);
     assert.equal((await results())[0]!.inventory, null);
     await writeFile(policyPath, "{broken");
@@ -143,9 +309,34 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     process.env.MCP_DISCOVERY_POLICY_FILE = policyPath;
     await db.update(enterpriseGrantsTable).set({ enabled: false }).where(eq(enterpriseGrantsTable.workspaceId, workspaceId));
     assert.equal((await call()).status, 401);
+    await db.update(enterpriseGrantsTable).set({ enabled: true }).where(eq(enterpriseGrantsTable.workspaceId, workspaceId));
+    await t.test("unavailable coordinator fails closed on reads and refresh without network fallback", async () => {
+      const unavailable = () => Promise.reject(new Error("private database failure"));
+      const app = express();
+      app.use(createMcpDiscoveryRouter(async () => { discoveries++; return inventory; }, {
+        revision: unavailable, acquire: unavailable, finish: unavailable,
+      }));
+      const failedServer = createServer(app);
+      await new Promise<void>(resolve => failedServer.listen(0, "127.0.0.1", resolve));
+      const count = discoveries;
+      try {
+        for (const method of ["GET", "POST"]) {
+          const response = await fetch(`http://127.0.0.1:${(failedServer.address() as { port: number }).port}/enterprise/mcp-discovery${method === "POST" ? "/fixture" : ""}`, {
+            method, headers: { Authorization: `Bearer ${token}`, Connection: "close" },
+          });
+          assert.equal(response.status, 503);
+          assert.equal(response.headers.get("cache-control"), "no-store");
+          assert.equal((await response.text()).includes("private database"), false);
+        }
+        assert.equal(discoveries, count);
+      } finally {
+        await new Promise<void>(resolve => failedServer.close(() => resolve()));
+      }
+    });
   } finally {
     t.mock.restoreAll();
     if (server) await new Promise<void>(resolve => server!.close(() => resolve()));
+    if (secondServer) await new Promise<void>(resolve => secondServer!.close(() => resolve()));
     if (oldPolicy === undefined) delete process.env.MCP_DISCOVERY_POLICY_FILE;
     else process.env.MCP_DISCOVERY_POLICY_FILE = oldPolicy;
     await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
@@ -153,6 +344,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     await db.delete(enterpriseStandardsTable).where(eq(enterpriseStandardsTable.version, version));
     if (documentId) await db.delete(knowledgeDocumentsTable).where(eq(knowledgeDocumentsTable.id, documentId));
     await rm(folder, { recursive: true, force: true });
+    await clearRate();
     await pool.end();
   }
 });

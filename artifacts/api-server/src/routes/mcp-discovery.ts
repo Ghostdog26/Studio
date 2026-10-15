@@ -6,6 +6,7 @@ import { ListMcpDiscoveryEvidenceResponse, RefreshMcpDiscoveryEvidenceResponse }
 import { mcpDiscoveryStatusSchema } from "@workspace/agent-runtime/openmetadata-contract";
 import { loadDiscoveryPolicy, approvalIsCurrent, approvedUrl, type DiscoveryApproval } from "../lib/mcp-discovery-policy";
 import { discoverMcp, networkExchange, DiscoveryFailure, type DiscoveryInventory } from "../lib/mcp-discovery-client";
+import { createDiscoveryCoordinator, type DiscoveryCoordinator } from "../lib/mcp-discovery-coordination";
 
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 type Grant = typeof enterpriseGrantsTable.$inferSelect;
@@ -15,6 +16,8 @@ type Evidence = {
   checkedAt: string;
   expiresAt: string;
   inventory: DiscoveryInventory | null;
+  revision: string;
+  bytes: number;
 };
 
 async function authenticate(req: Request) {
@@ -27,7 +30,7 @@ async function authenticate(req: Request) {
   return grant ?? null;
 }
 
-async function scopeFor(approval: DiscoveryApproval, grant: Grant) {
+async function scopeFor(approval: DiscoveryApproval, grant: Grant, revision: string) {
   if (!approvalIsCurrent(approval) || approval.workspaceId !== grant.workspaceId ||
       approval.userId !== grant.userId) return null;
   approvedUrl(approval.endpoint);
@@ -44,7 +47,7 @@ async function scopeFor(approval: DiscoveryApproval, grant: Grant) {
     ));
   if (new Set(documents.map(d => d.documentId)).size !== new Set(approval.evidenceDocumentIds).size) return null;
   documents.sort((a, b) => a.documentId - b.documentId);
-  return digest({ approval, grant, documents });
+  return digest({ approval, grant, documents, revision });
 }
 
 export function createMcpDiscoveryRouter(
@@ -53,12 +56,29 @@ export function createMcpDiscoveryRouter(
     if (!credential || /[\r\n]/.test(credential)) throw new DiscoveryFailure("remote-denied");
     return discoverMcp(approval, networkExchange(approval, credential, signal));
   },
+  coordinator: DiscoveryCoordinator = createDiscoveryCoordinator(),
 ): IRouter {
 const router: IRouter = Router();
 const evidence = new Map<string, Evidence>();
-const attempts = new Map<string, number>();
-let active = 0;
-const inFlight = new Set<string>();
+let evidenceBytes = 0;
+function remove(key: string) {
+  evidenceBytes -= evidence.get(key)?.bytes ?? 0;
+  evidence.delete(key);
+}
+function prune(revision?: string) {
+  for (const [key, saved] of evidence) {
+    if (revision !== undefined && saved.revision !== revision) { remove(key); continue; }
+    if (Date.parse(saved.expiresAt) <= Date.now()) {
+      // Keep only the bounded status metadata so the UI can still report "stale".
+      evidenceBytes -= saved.bytes;
+      saved.inventory = null;
+      saved.bytes = 0;
+    }
+  }
+}
+// Idle replicas also drop expired payloads. The timer does not keep a worker alive.
+const cleanup = setInterval(() => prune(), 30_000);
+cleanup.unref();
 
 function report(approval: DiscoveryApproval, key: string | null) {
   const saved = key ? evidence.get(key) : undefined;
@@ -84,15 +104,27 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
   // An explicit per-user approval below is a separate discovery grant; generation tool
   // permissions, shared demo membership and bridge assertions cannot authorize discovery.
   try {
+    // Capture the invalidation epoch BEFORE reading any authorization rows.
+    // Otherwise a revoke between authentication and this read could use an old grant
+    // with a new epoch and still start network I/O.
+    const revision = await coordinator.revision();
     const grant = await authenticate(req);
     if (!grant) { res.status(401).json({ error: "An initiating-user scoped enterprise capability is required." }); return; }
     const policy = await loadDiscoveryPolicy();
+    const scopeRevision = `${revision}:${policy.revision}`;
+    // A revoked/restored grant or operator policy must never resurrect an old inventory.
+    prune(scopeRevision);
     const approvals = policy.approvals.filter(a => a.workspaceId === grant.workspaceId && a.userId === grant.userId);
     const id = req.params.id;
     if (req.method === "GET") {
       if (id) { res.sendStatus(405); return; }
-      const results = [];
-      for (const approval of approvals) results.push(report(approval, await scopeFor(approval, grant)));
+      const scopes = [];
+      for (const approval of approvals) scopes.push({ approval, key: await scopeFor(approval, grant, scopeRevision) });
+      if (await coordinator.revision() !== revision || (await loadDiscoveryPolicy()).revision !== policy.revision) {
+        for (const key of evidence.keys()) remove(key);
+        res.status(403).json({ status: "denied", error: "Discovery authorization changed; results discarded." }); return;
+      }
+      const results = scopes.map(({ approval, key }) => report(approval, key));
       res.json(ListMcpDiscoveryEvidenceResponse.parse({ mode: "discovery-only", results })); return;
     }
     const emptyBody = req.body === undefined || (req.body !== null && typeof req.body === "object" &&
@@ -102,46 +134,73 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
     }
     const approval = approvals.find(a => a.id === id);
     if (!approval) { res.status(403).json({ status: "denied", error: "No operator approval for this initiating user and endpoint." }); return; }
-    const key = await scopeFor(approval, grant);
+    const key = await scopeFor(approval, grant, scopeRevision);
     if (!key) { res.status(403).json(report(approval, null)); return; }
-    const now = Date.now();
-    for (const [k, until] of attempts) if (until <= now) attempts.delete(k);
     const rateKey = digest({ workspaceId: grant.workspaceId, userId: grant.userId });
-    if (inFlight.has(rateKey) || active >= 4 || (attempts.get(rateKey) ?? 0) > now || attempts.size >= 1000) {
+    const lease = await coordinator.acquire(rateKey);
+    if (!lease) {
       res.setHeader("Retry-After", "60");
-      res.status(429).json({ error: "Discovery capacity or per-user request limit reached." }); return;
+      res.status(429).json({ error: "Discovery capacity or shared request limit reached." }); return;
     }
-    attempts.set(rateKey, now + 60_000);
-    inFlight.add(rateKey); active++;
+    if (lease.revision !== revision) {
+      await coordinator.finish(lease);
+      res.status(403).json({ status: "denied", error: "Discovery authorization changed; results discarded." }); return;
+    }
+    // A failed/expired refresh must not leave an earlier verified inventory available.
+    remove(key);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     let result: Evidence;
     try {
-      const inventory = await runDiscovery(approval, controller.signal);
+      // Enforce the deadline even if an injected/buggy transport ignores cancellation.
+      const inventory = await Promise.race([
+        runDiscovery(approval, controller.signal),
+        new Promise<never>((_resolve, reject) => controller.signal.addEventListener("abort",
+          () => reject(new DiscoveryFailure("discovery-failed")), { once: true })),
+      ]);
+      controller.signal.throwIfAborted();
+      const bytes = Buffer.byteLength(JSON.stringify(inventory));
+      if (bytes > 1024 * 1024) throw new DiscoveryFailure("incomplete-discovery");
       result = {
         status: "verified", reason: "Authenticated initialization and complete supported capability lists observed; not invocation approval.",
         checkedAt: new Date().toISOString(),
         expiresAt: new Date(Math.min(Date.now() + 5 * 60_000, Date.parse(approval.expiresAt))).toISOString(),
-        inventory,
+        inventory, bytes, revision: scopeRevision,
       };
     } catch (error) {
       const reason = error instanceof DiscoveryFailure ? error.reason : "discovery-failed";
       result = {
         status: reason === "remote-denied" || reason === "network-policy" ? "denied" : "unknown",
-        reason, checkedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(), inventory: null,
+        reason, checkedAt: new Date().toISOString(),
+        expiresAt: new Date(Math.min(Date.now() + 60_000, Date.parse(approval.expiresAt))).toISOString(),
+        inventory: null, bytes: 0, revision: scopeRevision,
       };
     } finally {
-      clearTimeout(timer); inFlight.delete(rateKey); active--;
+      clearTimeout(timer);
     }
     // Recheck revocation, permissions, evidence edits and operator policy after network I/O.
-    const currentGrant = await authenticate(req);
-    const currentApproval = (await loadDiscoveryPolicy()).approvals.find(a => a.id === id);
-    if (!currentGrant || !currentApproval || await scopeFor(currentApproval, currentGrant) !== key) {
-      evidence.delete(key);
-      res.status(403).json({ status: "denied", error: "Discovery authorization changed; results discarded." }); return;
+    let currentApproval: DiscoveryApproval | undefined;
+    let authorized = false;
+    let live = false;
+    try {
+      const currentGrant = await authenticate(req);
+      const currentPolicy = await loadDiscoveryPolicy();
+      currentApproval = currentPolicy.approvals.find(a => a.id === id);
+      authorized = !!currentGrant && !!currentApproval &&
+        await scopeFor(currentApproval, currentGrant, `${revision}:${currentPolicy.revision}`) === key;
+    } finally {
+      // An expired lease cannot publish, and a late completion cannot release a successor.
+      live = await coordinator.finish(lease);
     }
-    if (evidence.size >= 1000) evidence.delete(evidence.keys().next().value!);
+    if (!authorized || !live || !currentApproval) {
+      remove(key);
+      res.status(403).json({ status: "denied", error: "Discovery authorization or lease changed; results discarded." }); return;
+    }
+    prune(scopeRevision);
+    remove(key);
+    while (evidence.size >= 1000 || evidenceBytes + result.bytes > 8 * 1024 * 1024) remove(evidence.keys().next().value!);
     evidence.set(key, result);
+    evidenceBytes += result.bytes;
     res.json(RefreshMcpDiscoveryEvidenceResponse.parse(report(currentApproval, key)));
   } catch {
     // Do not log upstream data, secret references or credential-bearing errors.

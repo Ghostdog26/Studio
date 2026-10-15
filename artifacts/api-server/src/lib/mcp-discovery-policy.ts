@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
-import { readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { BlockList, isIP } from "node:net";
 
 const text = z.string().trim().min(1).max(500);
@@ -35,10 +36,24 @@ export const discoveryPolicySchema = z.strictObject({
 export async function loadDiscoveryPolicy() {
   // Operator-controlled file only. No web endpoint can write approvals or choose this path.
   const path = process.env.MCP_DISCOVERY_POLICY_FILE;
-  if (!path) return { version: "1" as const, approvals: [] };
-  const bytes = await readFile(path);
-  if (bytes.length > 128 * 1024) throw new Error("Invalid discovery policy");
-  return discoveryPolicySchema.parse(JSON.parse(bytes.toString("utf8")));
+  if (!path) return { version: "1" as const, approvals: [], revision: "disabled" };
+  const file = await open(path, "r");
+  try {
+    const before = await file.stat({ bigint: true });
+    if (before.size > 128n * 1024n) throw new Error("Invalid discovery policy");
+    const bytes = await file.readFile();
+    const after = await file.stat({ bigint: true });
+    if (bytes.length > 128 * 1024 || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) {
+      throw new Error("Discovery policy changed during read");
+    }
+    // Removing and restoring the same approval must not resurrect cached evidence.
+    // Include file identity/timestamps, not only the approval's JSON contents.
+    const revision = createHash("sha256").update(bytes)
+      .update(`${after.dev}:${after.ino}:${after.mtimeNs}:${after.ctimeNs}`).digest("hex");
+    return { ...discoveryPolicySchema.parse(JSON.parse(bytes.toString("utf8"))), revision };
+  } finally {
+    await file.close();
+  }
 }
 
 const blocked = new BlockList();

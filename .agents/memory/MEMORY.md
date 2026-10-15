@@ -5,3 +5,4 @@
 - [Enterprise knowledge boundary](enterprise-boundary.md) — shared demo access and workspace ownership do not authorize collaborators' enterprise knowledge.
 - [OpenMetadata source policy](openmetadata-source-policy.md) — intended enterprise catalogue source; reference understanding does not authorize live instance access.
 - [Generated validation constants](codegen-validation-quirk.md) — generated validators can use numeric constants before declaration; generation alone is not verification.
+- [Discovery revocation](discovery-revocation.md) — restoring identical permissions must not restore old discovery evidence; keep monotonic invalidation.

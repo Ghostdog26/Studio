@@ -211,18 +211,43 @@ headers. Every connection resolves all DNS answers, rejects non-public/special-u
 and IPv6, and pins a validated public address while retaining TLS hostname verification.
 There are no retries. Bounds: 20 seconds total (including DNS), 256 KiB per response,
 1 MiB aggregate, 16 KiB response headers, 3 pages and 200 items per capability, 11 RPC
-requests plus one notification, four concurrent discoveries, one attempt per user/minute,
-and 1,000 in-memory result/rate-limit entries. Use external egress controls as defense
-in depth. In-memory capacity/rate limits apply per API process.
+requests plus one notification. Shared PostgreSQL admission permits four concurrent
+discoveries globally, one concurrent discovery per workspace/user, one admitted attempt
+per workspace/user per rolling minute, and 60 admitted attempts globally per rolling
+minute. A short row-lock transaction atomically checks and updates both limits using
+the database clock. Unique 30-second leases recover capacity after a worker crash;
+the network deadline remains 20 seconds. Late completions cannot publish evidence or
+release a replacement lease. Releasing a slot does not clear its rate cooldown.
+Use external egress controls as defense in depth.
+
+All replicas must use the same PostgreSQL database and operator-approved policy.
+After schema push, run `pnpm --filter @workspace/scripts run discovery:setup` before
+starting replicas; the post-merge script does this automatically. This installs the
+shared coordination row and transactional authorization-invalidation triggers.
+Missing coordination state/triggers, database errors or lock timeouts deny discovery
+with 503, without any process-local limiter or network fallback. Capacity/rate denials
+return 429 and `Retry-After: 60`. The coordination row contains only bounded lease IDs,
+hashed user scopes, counters and an invalidation revision—not credentials or inventories.
 
 Results are scoped to approval, instance/record, endpoint, deployed version, user/workspace,
 current bearer grant, evidence documents/content and permission revision. Access is
-rechecked before lookup and after network I/O. Verified evidence expires within five
+rechecked before lookup and after network I/O. Permission/grant and knowledge-document
+mutations (including direct SQL and truncation) transactionally advance a shared,
+monotonic invalidation revision. This deliberately invalidates all discovery evidence,
+including unrelated scopes, rather than risking stale authorization. Revoking and
+restoring identical permissions therefore cannot resurrect old evidence on an idle
+replica or authorize a previously started discovery. Policy-file identity and modification
+timestamps also invalidate evidence when identical approval JSON is removed and restored.
+Distribute policy revocations to every replica; a local file cannot revoke another
+replica's independently managed policy. Verified evidence expires within five
 minutes or at approval expiry, whichever comes first. Inventory appears only for current
 `verified` evidence; `unknown` means never checked or failed/incomplete discovery, `denied`
 means rejected authorization/network policy, and `stale` means expired evidence or approval.
 Failures replace old inventories rather than silently serving them. Results are `no-store`,
-bounded and memory-only; restart/eviction returns them to unknown. GET does no network
+bounded and memory-only (1,000 results, 1 MiB per inventory, 8 MiB total payload per
+replica); expired payloads are cleared on access and by an idle cleanup timer.
+Restart/eviction or switching to a replica without the inventory returns it to unknown,
+but never resets shared admission limits. GET does no network
 discovery, POST is always explicit, and `approvedForInvocation` is always false.
 No tool approval, generated code execution or Cloudflare/OpenShell adapter is enabled.
 
