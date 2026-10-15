@@ -5,6 +5,101 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+export type McpDiscoveryEvidenceListMode = typeof McpDiscoveryEvidenceListMode[keyof typeof McpDiscoveryEvidenceListMode];
+
+
+export const McpDiscoveryEvidenceListMode = {
+  'discovery-only': 'discovery-only',
+} as const;
+
+export type McpDiscoveryEvidenceLayer = typeof McpDiscoveryEvidenceLayer[keyof typeof McpDiscoveryEvidenceLayer];
+
+
+export const McpDiscoveryEvidenceLayer = {
+  'openmetadata-interface': 'openmetadata-interface',
+  'catalogued-server': 'catalogued-server',
+} as const;
+
+export type McpDiscoveryEvidenceTransport = typeof McpDiscoveryEvidenceTransport[keyof typeof McpDiscoveryEvidenceTransport];
+
+
+export const McpDiscoveryEvidenceTransport = {
+  'streamable-http': 'streamable-http',
+} as const;
+
+export type McpDiscoveryEvidenceStatus = typeof McpDiscoveryEvidenceStatus[keyof typeof McpDiscoveryEvidenceStatus];
+
+
+export const McpDiscoveryEvidenceStatus = {
+  unknown: 'unknown',
+  denied: 'denied',
+  stale: 'stale',
+  verified: 'verified',
+} as const;
+
+export type McpDiscoveredToolInputSchema = { [key: string]: unknown };
+
+export type McpDiscoveredToolOutputSchema = { [key: string]: unknown };
+
+export interface McpDiscoveredTool {
+  name: string;
+  description?: string;
+  inputSchema: McpDiscoveredToolInputSchema;
+  outputSchema?: McpDiscoveredToolOutputSchema;
+}
+
+export interface McpDiscoveredResource {
+  uri: string;
+  name?: string;
+  description?: string;
+}
+
+export interface McpDiscoveredPrompt {
+  name: string;
+  description?: string;
+}
+
+export type McpDiscoveryInventoryServerInfo = {
+  name: string;
+  version: string;
+};
+
+export interface McpDiscoveryInventory {
+  serverInfo: McpDiscoveryInventoryServerInfo;
+  protocolVersion: string;
+  tools: McpDiscoveredTool[];
+  resources: McpDiscoveredResource[];
+  prompts: McpDiscoveredPrompt[];
+}
+
+export interface McpDiscoveryEvidence {
+  id: string;
+  layer: McpDiscoveryEvidenceLayer;
+  instanceId: string;
+  /** @nullable */
+  catalogueRecordId: string | null;
+  endpoint: string;
+  deployedVersion: string;
+  transport: McpDiscoveryEvidenceTransport;
+  protocolVersion: string;
+  evidenceRevision: string;
+  /** @nullable */
+  permissionRevision: string | null;
+  status: McpDiscoveryEvidenceStatus;
+  reason: string;
+  /** @nullable */
+  checkedAt: string | null;
+  expiresAt: string;
+  inventory: McpDiscoveryInventory | null;
+  approvedForInvocation: false;
+  descriptionsAreUntrusted: true;
+}
+
+export interface McpDiscoveryEvidenceList {
+  mode: McpDiscoveryEvidenceListMode;
+  results: McpDiscoveryEvidence[];
+}
+
 export interface BuilderDiscoveryInput {
   /**
      * @minLength 8

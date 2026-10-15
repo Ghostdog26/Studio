@@ -13,6 +13,8 @@ import { queryKnowledge } from "./foundry";
 
 const router: IRouter = Router();
 export const enterpriseTools = [
+  // Outbound MCP discovery has its own authenticated /enterprise/mcp-discovery API.
+  // It is deliberately not a generative tool or an implicit tools/call capability.
   { name: "foundry.generation.context", description: "Get pinned enterprise schemas, template, policy and authorized wiki answer for creation.", inputSchema: {
     type: "object", properties: { standardsVersion: { type: "string" }, templateId: { type: "string" }, query: { type: "string", minLength: 1, maxLength: 4000 } },
     required: ["standardsVersion", "templateId", "query"], additionalProperties: false,

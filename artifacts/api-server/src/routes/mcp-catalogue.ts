@@ -12,6 +12,8 @@ import {
 } from "../lib/catalogue-category-standards";
 
 const router: IRouter = Router();
+// This public community directory never probes endpoints or joins permission-scoped
+// enterprise discovery evidence. Catalogue entries are not operator approvals.
 
 function serialize(entry: typeof mcpCatalogueTable.$inferSelect) {
   return { ...entry, importedAt: entry.importedAt.toISOString() };

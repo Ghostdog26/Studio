@@ -4,6 +4,9 @@ import { OPENMETADATA_REFERENCE_VERSION, OPENMETADATA_REVISION, OPENMETADATA_REQ
 const nonempty = z.string().min(1).max(1000);
 const timestamp = z.string().regex(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/);
 const sourceUrl = z.string().regex(/^https:\/\/[^\s@]+$/);
+// Authenticated discovery is a separate capability; never upgrade an offline snapshot
+// to live or invocation-approved based on a catalogue record or embedded prose.
+export const mcpDiscoveryStatusSchema = z.enum(["unknown", "denied", "stale", "verified"]);
 // Offline snapshot contract. Even authorized snapshots do not establish live connectivity.
 export const openMetadataContextSchema = z.strictObject({
   contractVersion: z.literal("1.0.0"),

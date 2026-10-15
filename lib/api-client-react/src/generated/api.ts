@@ -44,6 +44,8 @@ import type {
   McpComponent,
   McpComponentInput,
   McpComponentUpdate,
+  McpDiscoveryEvidence,
+  McpDiscoveryEvidenceList,
   McpSdkDirectory,
   Overview,
   RuntimeAdapter
@@ -75,6 +77,162 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListMcpDiscoveryEvidenceUrl = () => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery`
+}
+
+/**
+ * @summary Permission-scoped MCP discovery evidence, separate from the community directory
+ */
+export const listMcpDiscoveryEvidence = async ( options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryEvidenceList> => {
+
+  return customFetch<McpDiscoveryEvidenceList>(getListMcpDiscoveryEvidenceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMcpDiscoveryEvidenceQueryKey = () => {
+    return [
+    `/api/enterprise/mcp-discovery`
+    ] as const;
+    }
+
+
+export const getListMcpDiscoveryEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMcpDiscoveryEvidenceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>> = ({ signal }) => listMcpDiscoveryEvidence({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMcpDiscoveryEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>>
+export type ListMcpDiscoveryEvidenceQueryError = ErrorType<void>
+
+
+/**
+ * @summary Permission-scoped MCP discovery evidence, separate from the community directory
+ */
+
+export function useListMcpDiscoveryEvidence<TData = Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMcpDiscoveryEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMcpDiscoveryEvidenceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRefreshMcpDiscoveryEvidenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery/${id}`
+}
+
+/**
+ * Empty body only. Uses an operator-provisioned credential reference and an
+ * initiating-user approval. Only initialize, initialized notification, and
+ * tools/resources/prompts list are sent. Never executes tools, reads resources,
+ * gets prompts, approves servers, installs code or enables runtime adapters.
+ * HTTPS public egress only, no redirects; JSON Streamable HTTP responses only.
+ * @summary Explicit authenticated discovery of one operator-approved endpoint
+ */
+export const refreshMcpDiscoveryEvidence = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryEvidence> => {
+
+  return customFetch<McpDiscoveryEvidence>(getRefreshMcpDiscoveryEvidenceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshMcpDiscoveryEvidenceMutationKey = () => ['refreshMcpDiscoveryEvidence'] as const;
+
+export const getRefreshMcpDiscoveryEvidenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>, TError,RefreshMcpDiscoveryEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>, TError,RefreshMcpDiscoveryEvidenceMutationVariables, TContext> => {
+
+const mutationKey = getRefreshMcpDiscoveryEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>, RefreshMcpDiscoveryEvidenceMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  refreshMcpDiscoveryEvidence(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshMcpDiscoveryEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>>
+
+    export type RefreshMcpDiscoveryEvidenceMutationError = ErrorType<void>
+    export type RefreshMcpDiscoveryEvidenceMutationVariables = {id: string}
+
+    /**
+ * @summary Explicit authenticated discovery of one operator-approved endpoint
+ */
+export const useRefreshMcpDiscoveryEvidence = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>, TError,RefreshMcpDiscoveryEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshMcpDiscoveryEvidence>>,
+        TError,
+        RefreshMcpDiscoveryEvidenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefreshMcpDiscoveryEvidenceMutationOptions(options));
+    }
 
 export const getDiscoverBuilderApproachesUrl = () => {
 

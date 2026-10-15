@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:mcp-discovery": "tsx --test ../artifacts/api-server/src/lib/mcp-discovery.test.ts ../artifacts/api-server/src/lib/mcp-discovery.integration.test.ts",
     "enterprise-standards": "tsx ./src/enterprise-standards.ts",
     "test:enterprise": "tsx --test ../artifacts/api-server/src/lib/enterprise-auth.test.ts ./src/enterprise-integration.test.ts",
     "test:openmetadata": "tsx --test ./src/openmetadata.test.ts",

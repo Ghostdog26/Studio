@@ -24,6 +24,111 @@ export const generateLanguageMcpPackageBodyInstructionsMax = 6000;
 export const generateLanguageMcpPackageBodyCategoriesMax = 12;
 
 
+/**
+ * @summary Permission-scoped MCP discovery evidence, separate from the community directory
+ */
+export const ListMcpDiscoveryEvidenceResponse = zod.object({
+  "mode": zod.enum(['discovery-only']),
+  "results": zod.array(zod.object({
+  "id": zod.string(),
+  "layer": zod.enum(['openmetadata-interface', 'catalogued-server']),
+  "instanceId": zod.string(),
+  "catalogueRecordId": zod.string().nullable(),
+  "endpoint": zod.string(),
+  "deployedVersion": zod.string(),
+  "transport": zod.enum(['streamable-http']),
+  "protocolVersion": zod.string(),
+  "evidenceRevision": zod.string(),
+  "permissionRevision": zod.string().nullable(),
+  "status": zod.enum(['unknown', 'denied', 'stale', 'verified']),
+  "reason": zod.string(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date(),
+  "inventory": zod.union([zod.object({
+  "serverInfo": zod.object({
+  "name": zod.string(),
+  "version": zod.string()
+}),
+  "protocolVersion": zod.string(),
+  "tools": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "inputSchema": zod.record(zod.string(), zod.unknown()),
+  "outputSchema": zod.record(zod.string(), zod.unknown()).optional()
+})),
+  "resources": zod.array(zod.object({
+  "uri": zod.string(),
+  "name": zod.string().optional(),
+  "description": zod.string().optional()
+})),
+  "prompts": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional()
+}))
+}),zod.null()]),
+  "approvedForInvocation": zod.literal(false),
+  "descriptionsAreUntrusted": zod.literal(true)
+}))
+})
+
+
+/**
+ * Empty body only. Uses an operator-provisioned credential reference and an
+ * initiating-user approval. Only initialize, initialized notification, and
+ * tools/resources/prompts list are sent. Never executes tools, reads resources,
+ * gets prompts, approves servers, installs code or enables runtime adapters.
+ * HTTPS public egress only, no redirects; JSON Streamable HTTP responses only.
+ * @summary Explicit authenticated discovery of one operator-approved endpoint
+ */
+export const refreshMcpDiscoveryEvidencePathIdRegExp = new RegExp('^[a-z0-9-]{1,80}$');
+
+
+export const RefreshMcpDiscoveryEvidenceParams = zod.object({
+  "id": zod.coerce.string().regex(refreshMcpDiscoveryEvidencePathIdRegExp)
+})
+
+export const RefreshMcpDiscoveryEvidenceResponse = zod.object({
+  "id": zod.string(),
+  "layer": zod.enum(['openmetadata-interface', 'catalogued-server']),
+  "instanceId": zod.string(),
+  "catalogueRecordId": zod.string().nullable(),
+  "endpoint": zod.string(),
+  "deployedVersion": zod.string(),
+  "transport": zod.enum(['streamable-http']),
+  "protocolVersion": zod.string(),
+  "evidenceRevision": zod.string(),
+  "permissionRevision": zod.string().nullable(),
+  "status": zod.enum(['unknown', 'denied', 'stale', 'verified']),
+  "reason": zod.string(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date(),
+  "inventory": zod.union([zod.object({
+  "serverInfo": zod.object({
+  "name": zod.string(),
+  "version": zod.string()
+}),
+  "protocolVersion": zod.string(),
+  "tools": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "inputSchema": zod.record(zod.string(), zod.unknown()),
+  "outputSchema": zod.record(zod.string(), zod.unknown()).optional()
+})),
+  "resources": zod.array(zod.object({
+  "uri": zod.string(),
+  "name": zod.string().optional(),
+  "description": zod.string().optional()
+})),
+  "prompts": zod.array(zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional()
+}))
+}),zod.null()]),
+  "approvedForInvocation": zod.literal(false),
+  "descriptionsAreUntrusted": zod.literal(true)
+})
+
+
 
 
 export const DiscoverBuilderApproachesBody = zod.object({

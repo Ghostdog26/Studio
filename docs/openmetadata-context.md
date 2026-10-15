@@ -2,7 +2,8 @@
 
 OpenMetadata is a first-class **reference context source**, not a connected enterprise
 instance. No customer schemas, API endpoints, credentials or live MCP inventories have
-been imported. No network client or execution capability is enabled by this integration.
+been imported by the reference integration. A separate opt-in, operator-approved discovery
+client is described below; reference imports never configure it. No execution capability is enabled.
 The existing community MCP catalogue remains separate.
 
 ## Verified sources and qualifications
@@ -137,9 +138,93 @@ represents the cited source**, a source-code audit, a build or human approval.
 2. **Catalogue MCP server records** describe other servers. Tool/resource/prompt records,
    health labels or deployment URLs can be stale; catalogue presence never makes a server
    connected, healthy, callable, or approved in Foundry.
-3. **Live authenticated discovery** must later use an explicitly approved client, caller,
-   endpoint, transport/protocol and release. It is not implemented here. Do not invoke
+3. **Live authenticated discovery** uses a separate explicitly approved client, caller,
+   endpoint, transport/protocol and release as described below. Do not invoke
    discovered tools automatically.
+
+## Opt-in discovery-only client
+
+The API exposes `GET /api/enterprise/mcp-discovery` and
+`POST /api/enterprise/mcp-discovery/{approval-id}` (empty body).
+Both require the existing initiating-user scoped bearer capability. They do not accept
+shared demo sessions, arbitrary user/workspace headers, bridge assertions, URLs or RPC.
+No discovery tool is added to the generative enterprise MCP tool list.
+The public community directory and builder references remain unchanged and unverified.
+
+An operator supplies a JSON file via the non-secret `MCP_DISCOVERY_POLICY_FILE` environment
+setting. There is no HTTP approval/configuration endpoint. Missing configuration means no
+approved endpoints. Invalid configuration fails closed. An illustrative policy follows;
+none of these fictional values establish a real connection:
+
+```json
+{
+  "version": "1",
+  "approvals": [{
+    "id": "example-metadata",
+    "layer": "openmetadata-interface",
+    "instanceId": "fictional-instance",
+    "catalogueRecordId": null,
+    "endpoint": "https://metadata.example.com/mcp",
+    "deployedVersion": "operator-verified-exact-server-version",
+    "protocolVersion": "2025-03-26",
+    "transport": "streamable-http",
+    "evidenceDocumentIds": [123],
+    "evidenceRevision": "operator-verified-deployment-and-transport-evidence-revision",
+    "credentialSecretRef": "secret://MCP_DISCOVERY_EXAMPLE",
+    "approvedBy": "operator-identifier",
+    "approvedAt": "2026-10-15T00:00:00Z",
+    "expiresAt": "2026-10-16T00:00:00Z",
+    "workspaceId": "explicit-workspace",
+    "userId": "actual-initiating-user"
+  }]
+}
+```
+
+For a record describing another server use `layer: "catalogued-server"` and its explicit
+non-null metadata record identity; do not use a community directory ID as authority.
+Create a separate approval for each endpoint and initiating user. The operator must verify
+the exact deployed server version (the version returned by MCP initialize), transport,
+protocol and endpoint in the evidence documents, and grant those documents through the
+existing enterprise provisioning command. Upstream-main source or family-level docs alone
+are not deployed-version evidence. These are operator attestations, not an automated
+assessment of the accuracy of their prose. Policy/evidence edits change the permission
+revision; document deletion/revocation and disabled/rotated bearer grants block prior results.
+
+Provision a least-privilege metadata-discovery bearer credential through workspace Secrets,
+under a dedicated `MCP_DISCOVERY_*` name. Only that secret reference belongs in the policy.
+Do not place credentials in URLs, wiki documents, request bodies, code or policy JSON.
+The service resolves the reference internally and never returns or logs credentials.
+This adapter uses a pre-provisioned bearer credential, not an interactive OAuth/PKCE flow;
+operators must not repurpose a data-source connector credential or infer user authorization
+from the service account's visibility.
+
+Discovery sends only `initialize`, `notifications/initialized`, and advertised
+`tools/list`, `resources/list`, `prompts/list`. It validates the exact version/protocol
+and follows bounded cursors. Resource URIs, prompts and tool descriptions are untrusted
+inventory, never fetched or executed. Only JSON responses over HTTPS Streamable HTTP on
+port 443 are supported; SSE-only, legacy SSE, stdio, unsupported protocols and private
+network endpoints fail explicitly, not as a verified empty inventory.
+
+The endpoint is exact and operator-owned: no URL from metadata, redirects, credentials,
+query string, alternate ports, literal IPs, proxies, remote cookies or forwarded client
+headers. Every connection resolves all DNS answers, rejects non-public/special-use IPv4
+and IPv6, and pins a validated public address while retaining TLS hostname verification.
+There are no retries. Bounds: 20 seconds total (including DNS), 256 KiB per response,
+1 MiB aggregate, 16 KiB response headers, 3 pages and 200 items per capability, 11 RPC
+requests plus one notification, four concurrent discoveries, one attempt per user/minute,
+and 1,000 in-memory result/rate-limit entries. Use external egress controls as defense
+in depth. In-memory capacity/rate limits apply per API process.
+
+Results are scoped to approval, instance/record, endpoint, deployed version, user/workspace,
+current bearer grant, evidence documents/content and permission revision. Access is
+rechecked before lookup and after network I/O. Verified evidence expires within five
+minutes or at approval expiry, whichever comes first. Inventory appears only for current
+`verified` evidence; `unknown` means never checked or failed/incomplete discovery, `denied`
+means rejected authorization/network policy, and `stale` means expired evidence or approval.
+Failures replace old inventories rather than silently serving them. Results are `no-store`,
+bounded and memory-only; restart/eviction returns them to unknown. GET does no network
+discovery, POST is always explicit, and `approvedForInvocation` is always false.
+No tool approval, generated code execution or Cloudflare/OpenShell adapter is enabled.
 
 Read-only metadata access is different from access to underlying datasets or permission
 to call a catalogued business API. Apply least privilege, per-user asset policy and

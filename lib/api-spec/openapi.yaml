@@ -13,6 +13,49 @@ tags:
   - name: workspace
     description: Agent Foundry workspace operations
 paths:
+  /enterprise/mcp-discovery:
+    get:
+      operationId: listMcpDiscoveryEvidence
+      tags: [workspace]
+      summary: Permission-scoped MCP discovery evidence, separate from the community directory
+      security: [{ EnterpriseCapability: [] }]
+      responses:
+        "200":
+          description: Current user approvals with unknown, denied, stale or verified evidence; never invocation approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/McpDiscoveryEvidenceList"
+        "401": { description: Initiating-user scoped capability required }
+        "503": { description: Policy or evidence unavailable; fail closed }
+  /enterprise/mcp-discovery/{id}:
+    post:
+      operationId: refreshMcpDiscoveryEvidence
+      tags: [workspace]
+      summary: Explicit authenticated discovery of one operator-approved endpoint
+      description: |
+        Empty body only. Uses an operator-provisioned credential reference and an
+        initiating-user approval. Only initialize, initialized notification, and
+        tools/resources/prompts list are sent. Never executes tools, reads resources,
+        gets prompts, approves servers, installs code or enables runtime adapters.
+        HTTPS public egress only, no redirects; JSON Streamable HTTP responses only.
+      security: [{ EnterpriseCapability: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" }
+      responses:
+        "200":
+          description: Discovery evidence; inspect status, not just HTTP success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpDiscoveryEvidence" }
+        "400": { description: "Arbitrary body, RPC, endpoint or query forbidden" }
+        "401": { description: Initiating-user scoped capability required }
+        "403": { description: "Missing, expired or revoked approval or evidence permission" }
+        "429": { description: Per-user or global capacity limit reached }
+        "503": { description: Invalid policy or unavailable authorization evidence }
   /builder/discover:
     post:
       operationId: discoverBuilderApproaches
@@ -442,6 +485,7 @@ paths:
         "429": { description: Generation capacity reached }
         "502": { description: AI provider unavailable or generated response invalid }
 components:
+  # Discovery credentials and approval management are never part of the public API.
   securitySchemes:
     EnterpriseCapability:
       type: http
@@ -455,6 +499,79 @@ components:
       schema:
         type: integer
   schemas:
+    McpDiscoveryEvidenceList:
+      type: object
+      required: [mode, results]
+      properties:
+        mode: { type: string, enum: [discovery-only] }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/McpDiscoveryEvidence" }
+    McpDiscoveryEvidence:
+      type: object
+      required: [id, layer, instanceId, catalogueRecordId, endpoint, deployedVersion, transport, protocolVersion, evidenceRevision, permissionRevision, status, reason, checkedAt, expiresAt, inventory, approvedForInvocation, descriptionsAreUntrusted]
+      properties:
+        id: { type: string }
+        layer: { type: string, enum: [openmetadata-interface, catalogued-server] }
+        instanceId: { type: string }
+        catalogueRecordId: { type: [string, "null"] }
+        endpoint: { type: string }
+        deployedVersion: { type: string }
+        transport: { type: string, enum: [streamable-http] }
+        protocolVersion: { type: string }
+        evidenceRevision: { type: string }
+        permissionRevision: { type: [string, "null"] }
+        status: { type: string, enum: [unknown, denied, stale, verified] }
+        reason: { type: string }
+        checkedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: string, format: date-time }
+        inventory:
+          oneOf:
+            - { $ref: "#/components/schemas/McpDiscoveryInventory" }
+            - { type: "null" }
+        approvedForInvocation: { type: boolean, enum: [false] }
+        descriptionsAreUntrusted: { type: boolean, enum: [true] }
+    McpDiscoveryInventory:
+      type: object
+      required: [serverInfo, protocolVersion, tools, resources, prompts]
+      properties:
+        serverInfo:
+          type: object
+          required: [name, version]
+          properties:
+            name: { type: string }
+            version: { type: string }
+        protocolVersion: { type: string }
+        tools:
+          type: array
+          items: { $ref: "#/components/schemas/McpDiscoveredTool" }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/McpDiscoveredResource" }
+        prompts:
+          type: array
+          items: { $ref: "#/components/schemas/McpDiscoveredPrompt" }
+    McpDiscoveredTool:
+      type: object
+      required: [name, inputSchema]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        inputSchema: { type: object, additionalProperties: true }
+        outputSchema: { type: object, additionalProperties: true }
+    McpDiscoveredPrompt:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+    McpDiscoveredResource:
+      type: object
+      required: [uri]
+      properties:
+        uri: { type: string }
+        name: { type: string }
+        description: { type: string }
     BuilderDiscoveryInput:
       type: object
       required: [goal]
