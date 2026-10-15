@@ -46,6 +46,12 @@ import type {
   McpComponentUpdate,
   McpDiscoveryEvidence,
   McpDiscoveryEvidenceList,
+  McpDiscoveryOAuthCallbackInput,
+  McpDiscoveryOAuthCredential,
+  McpDiscoveryOAuthReferenceInput,
+  McpDiscoveryOAuthRevocation,
+  McpDiscoveryOAuthStart,
+  McpDiscoveryOAuthStartInput,
   McpSdkDirectory,
   Overview,
   RuntimeAdapter
@@ -164,7 +170,7 @@ export const getRefreshMcpDiscoveryEvidenceUrl = (id: string,) => {
 }
 
 /**
- * Empty body only. Uses an operator-provisioned credential reference and an
+ * Empty body only. Uses an operator-provisioned bearer secret or user-bound OAuth credential and an
  * initiating-user approval. Only initialize, initialized notification, and
  * tools/resources/prompts list are sent. Never executes tools, reads resources,
  * gets prompts, approves servers, installs code or enables runtime adapters.
@@ -232,6 +238,365 @@ export const useRefreshMcpDiscoveryEvidence = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRefreshMcpDiscoveryEvidenceMutationOptions(options));
+    }
+
+export const getBeginMcpDiscoveryOAuthUrl = (id: string,) => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery/${id}/oauth/authorize`
+}
+
+/**
+ * @summary Begin user-bound PKCE authorization for an already approved discovery endpoint
+ */
+export const beginMcpDiscoveryOAuth = async (id: string,
+    mcpDiscoveryOAuthStartInput: McpDiscoveryOAuthStartInput, options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryOAuthStart> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<McpDiscoveryOAuthStart>(getBeginMcpDiscoveryOAuthUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mcpDiscoveryOAuthStartInput)
+  }
+);}
+
+
+
+
+
+export const getBeginMcpDiscoveryOAuthMutationKey = () => ['beginMcpDiscoveryOAuth'] as const;
+
+export const getBeginMcpDiscoveryOAuthMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>, TError,BeginMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>, TError,BeginMcpDiscoveryOAuthMutationVariables, TContext> => {
+
+const mutationKey = getBeginMcpDiscoveryOAuthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>, BeginMcpDiscoveryOAuthMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  beginMcpDiscoveryOAuth(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BeginMcpDiscoveryOAuthMutationResult = NonNullable<Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>>
+    export type BeginMcpDiscoveryOAuthMutationBody = BodyType<McpDiscoveryOAuthStartInput>
+    export type BeginMcpDiscoveryOAuthMutationError = ErrorType<void>
+    export type BeginMcpDiscoveryOAuthMutationVariables = {id: string;data: BodyType<McpDiscoveryOAuthStartInput>}
+
+    /**
+ * @summary Begin user-bound PKCE authorization for an already approved discovery endpoint
+ */
+export const useBeginMcpDiscoveryOAuth = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>, TError,BeginMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof beginMcpDiscoveryOAuth>>,
+        TError,
+        BeginMcpDiscoveryOAuthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBeginMcpDiscoveryOAuthMutationOptions(options));
+    }
+
+export const getCompleteMcpDiscoveryOAuthUrl = (id: string,) => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery/${id}/oauth/callback`
+}
+
+/**
+ * The operator-registered redirect handler forwards state and code using the same
+ * initiating-user enterprise capability. This is not an anonymous browser callback.
+ * No identity or redirect is inferred from headers, browser cookies, or OAuth metadata.
+ * @summary Exchange a one-time PKCE code using the original initiating-user capability
+ */
+export const completeMcpDiscoveryOAuth = async (id: string,
+    mcpDiscoveryOAuthCallbackInput: McpDiscoveryOAuthCallbackInput, options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryOAuthCredential> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<McpDiscoveryOAuthCredential>(getCompleteMcpDiscoveryOAuthUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mcpDiscoveryOAuthCallbackInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteMcpDiscoveryOAuthMutationKey = () => ['completeMcpDiscoveryOAuth'] as const;
+
+export const getCompleteMcpDiscoveryOAuthMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>, TError,CompleteMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>, TError,CompleteMcpDiscoveryOAuthMutationVariables, TContext> => {
+
+const mutationKey = getCompleteMcpDiscoveryOAuthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>, CompleteMcpDiscoveryOAuthMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  completeMcpDiscoveryOAuth(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteMcpDiscoveryOAuthMutationResult = NonNullable<Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>>
+    export type CompleteMcpDiscoveryOAuthMutationBody = BodyType<McpDiscoveryOAuthCallbackInput>
+    export type CompleteMcpDiscoveryOAuthMutationError = ErrorType<void>
+    export type CompleteMcpDiscoveryOAuthMutationVariables = {id: string;data: BodyType<McpDiscoveryOAuthCallbackInput>}
+
+    /**
+ * @summary Exchange a one-time PKCE code using the original initiating-user capability
+ */
+export const useCompleteMcpDiscoveryOAuth = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>, TError,CompleteMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeMcpDiscoveryOAuth>>,
+        TError,
+        CompleteMcpDiscoveryOAuthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompleteMcpDiscoveryOAuthMutationOptions(options));
+    }
+
+export const getRefreshMcpDiscoveryOAuthUrl = (id: string,) => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery/${id}/oauth/refresh`
+}
+
+/**
+ * @summary Explicitly refresh the current user's discovery credential
+ */
+export const refreshMcpDiscoveryOAuth = async (id: string,
+    mcpDiscoveryOAuthReferenceInput: McpDiscoveryOAuthReferenceInput, options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryOAuthCredential> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<McpDiscoveryOAuthCredential>(getRefreshMcpDiscoveryOAuthUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mcpDiscoveryOAuthReferenceInput)
+  }
+);}
+
+
+
+
+
+export const getRefreshMcpDiscoveryOAuthMutationKey = () => ['refreshMcpDiscoveryOAuth'] as const;
+
+export const getRefreshMcpDiscoveryOAuthMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>, TError,RefreshMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>, TError,RefreshMcpDiscoveryOAuthMutationVariables, TContext> => {
+
+const mutationKey = getRefreshMcpDiscoveryOAuthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>, RefreshMcpDiscoveryOAuthMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  refreshMcpDiscoveryOAuth(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshMcpDiscoveryOAuthMutationResult = NonNullable<Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>>
+    export type RefreshMcpDiscoveryOAuthMutationBody = BodyType<McpDiscoveryOAuthReferenceInput>
+    export type RefreshMcpDiscoveryOAuthMutationError = ErrorType<void>
+    export type RefreshMcpDiscoveryOAuthMutationVariables = {id: string;data: BodyType<McpDiscoveryOAuthReferenceInput>}
+
+    /**
+ * @summary Explicitly refresh the current user's discovery credential
+ */
+export const useRefreshMcpDiscoveryOAuth = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>, TError,RefreshMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshMcpDiscoveryOAuth>>,
+        TError,
+        RefreshMcpDiscoveryOAuthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefreshMcpDiscoveryOAuthMutationOptions(options));
+    }
+
+export const getRevokeMcpDiscoveryOAuthUrl = (id: string,) => {
+
+
+
+
+  return `/api/enterprise/mcp-discovery/${id}/oauth/revoke`
+}
+
+/**
+ * @summary Immediately remove the user's discovery credential and attempt provider revocation
+ */
+export const revokeMcpDiscoveryOAuth = async (id: string,
+    mcpDiscoveryOAuthReferenceInput: McpDiscoveryOAuthReferenceInput, options?: Parameters<typeof customFetch>[1]): Promise<McpDiscoveryOAuthRevocation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<McpDiscoveryOAuthRevocation>(getRevokeMcpDiscoveryOAuthUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mcpDiscoveryOAuthReferenceInput)
+  }
+);}
+
+
+
+
+
+export const getRevokeMcpDiscoveryOAuthMutationKey = () => ['revokeMcpDiscoveryOAuth'] as const;
+
+export const getRevokeMcpDiscoveryOAuthMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>, TError,RevokeMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>, TError,RevokeMcpDiscoveryOAuthMutationVariables, TContext> => {
+
+const mutationKey = getRevokeMcpDiscoveryOAuthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>, RevokeMcpDiscoveryOAuthMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  revokeMcpDiscoveryOAuth(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeMcpDiscoveryOAuthMutationResult = NonNullable<Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>>
+    export type RevokeMcpDiscoveryOAuthMutationBody = BodyType<McpDiscoveryOAuthReferenceInput>
+    export type RevokeMcpDiscoveryOAuthMutationError = ErrorType<void>
+    export type RevokeMcpDiscoveryOAuthMutationVariables = {id: string;data: BodyType<McpDiscoveryOAuthReferenceInput>}
+
+    /**
+ * @summary Immediately remove the user's discovery credential and attempt provider revocation
+ */
+export const useRevokeMcpDiscoveryOAuth = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>, TError,RevokeMcpDiscoveryOAuthMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeMcpDiscoveryOAuth>>,
+        TError,
+        RevokeMcpDiscoveryOAuthMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeMcpDiscoveryOAuthMutationOptions(options));
     }
 
 export const getDiscoverBuilderApproachesUrl = () => {

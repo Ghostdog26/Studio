@@ -4,6 +4,18 @@ import { createHash } from "node:crypto";
 import { BlockList, isIP } from "node:net";
 
 const text = z.string().trim().min(1).max(500);
+
+const oauthUrl = z.string().url().max(2000).refine(value => {
+  try { approvedUrl(value); return true; } catch { return false; }
+}, "OAuth URLs must satisfy the discovery HTTPS egress policy");
+export const discoveryOAuthSchema = z.strictObject({
+  authorizationEndpoint: oauthUrl,
+  tokenEndpoint: oauthUrl,
+  revocationEndpoint: oauthUrl,
+  redirectUri: oauthUrl,
+  clientId: text,
+  scopes: z.array(z.string().regex(/^[\x21\x23-\x5b\x5d-\x7e]{1,200}$/)).min(1).max(20),
+});
 export const discoveryApprovalSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9-]{1,80}$/),
   layer: z.enum(["openmetadata-interface", "catalogued-server"]),
@@ -16,13 +28,17 @@ export const discoveryApprovalSchema = z.strictObject({
   transport: z.literal("streamable-http"),
   evidenceDocumentIds: z.array(z.number().int().positive()).min(1).max(20),
   evidenceRevision: text,
-  credentialSecretRef: z.string().regex(/^secret:\/\/MCP_DISCOVERY_[A-Z0-9_]+$/),
+  credentialSecretRef: z.string().regex(/^secret:\/\/MCP_DISCOVERY_[A-Z0-9_]+$/).optional(),
+  oauth: discoveryOAuthSchema.optional(),
   approvedBy: text,
   approvedAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   workspaceId: text,
   userId: text,
 }).superRefine((value, ctx) => {
+  if (Boolean(value.credentialSecretRef) === Boolean(value.oauth)) {
+    ctx.addIssue({ code: "custom", message: "Choose exactly one credential source: bearer secret or user OAuth." });
+  }
   if ((value.layer === "catalogued-server") !== (value.catalogueRecordId !== null)) {
     ctx.addIssue({ code: "custom", message: "Catalogue record identity must match the MCP layer." });
   }

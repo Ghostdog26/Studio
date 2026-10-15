@@ -194,9 +194,80 @@ Provision a least-privilege metadata-discovery bearer credential through workspa
 under a dedicated `MCP_DISCOVERY_*` name. Only that secret reference belongs in the policy.
 Do not place credentials in URLs, wiki documents, request bodies, code or policy JSON.
 The service resolves the reference internally and never returns or logs credentials.
-This adapter uses a pre-provisioned bearer credential, not an interactive OAuth/PKCE flow;
-operators must not repurpose a data-source connector credential or infer user authorization
-from the service account's visibility.
+Alternatively, replace `credentialSecretRef` with an operator-owned `oauth` object (exactly
+one credential source is required):
+
+```json
+{
+  "oauth": {
+    "authorizationEndpoint": "https://identity.example.com/authorize",
+    "tokenEndpoint": "https://identity.example.com/token",
+    "revocationEndpoint": "https://identity.example.com/revoke",
+    "redirectUri": "https://application.example.com/discovery-return",
+    "clientId": "operator-registered-public-client",
+    "scopes": ["metadata:read"]
+  }
+}
+```
+
+The operator must verify/register this public OAuth client and its exact HTTPS redirect
+handler. Only authorization-code flow with S256 PKCE and bearer tokens with an explicit
+positive `expires_in` is supported. No dynamic client registration, issuer/endpoint
+autodiscovery, client secrets, additional scopes or URL overrides are accepted. Token,
+refresh and revocation requests use the same public-only DNS-pinned HTTPS transport and
+20-second deadline as discovery. Redirects are never followed. The browser authorization
+URL is operator-pinned; the browser/identity provider handles login independently.
+Do not repurpose a data-source connector credential or infer user authorization from a
+service account's visibility.
+
+All lifecycle endpoints require the **same initiating-user enterprise capability** as
+discovery, current operator approval and evidence-document permissions. No user ID,
+workspace ID, credential value or arbitrary endpoint can be submitted:
+
+1. `POST /api/enterprise/mcp-discovery/{id}/oauth/authorize` with `{}` returns
+   `{authorizationUrl, expiresAt}`. Open that URL for user consent. State is random,
+   single-use and valid for at most five minutes or until approval expiry. The PKCE
+   verifier stays server-side; `resource` is the approved MCP endpoint.
+2. The operator-registered application redirect handler captures `state` and `code`, then
+   forwards them in `POST .../{id}/oauth/callback` with `{state, code, redirectUri}` and
+   the original user's capability in the Authorization header. `redirectUri` must exactly
+   match policy. This is an authenticated JSON exchange, **not** an anonymous GET browser
+   redirect. Never put the enterprise capability in URLs, browser storage or query strings.
+   Deployments must supply a trusted per-user redirect handler; a shared-demo identity or
+   owner capability is not a substitute.
+3. The callback returns `{credentialReference, expiresAt}`, never tokens. Explicit discovery
+   uses that user's current server-side access token. Expired access is denied; GET and
+   discovery never perform a hidden refresh.
+4. `POST .../{id}/oauth/refresh` with `{credentialReference}` explicitly exchanges the
+   refresh token. Success rotates the reference and invalidates old inventory. Old,
+   revoked or other-user references are rejected. Provider rejection drops the local
+   credential; restart authorization.
+5. `POST .../{id}/oauth/revoke` with `{credentialReference}` immediately deletes local
+   access/refresh tokens and pending states, then attempts provider revocation of both.
+   `{revoked: true, remoteRevoked: false}` means local deletion succeeded but provider
+   revocation could not be confirmed (including exhausted shared outbound capacity).
+   Revoke before removing an approval/grant when provider-side revocation is needed;
+   removing permission prevents local use but cannot prove provider revocation.
+
+State, references and refresh/revocation bind to the actual enterprise user/workspace,
+current bearer grant, complete approval (including all OAuth URLs and the MCP endpoint),
+evidence permissions/content, shared monotonic invalidation epoch, and policy-file revision.
+Callback/refresh and discovery recheck these boundaries after network I/O. Revoke/restore,
+replayed/expired state, changed redirects and substituted references fail closed. Provider
+MCP 401/403 also invalidates the local OAuth credential and inventory.
+
+OAuth credentials/states are bounded to 1,000 entries per process, never persisted/logged,
+and lost on restart; lifecycle and discovery calls must reach the same process.
+OAuth credential/state persistence is not supplied by the shared admission coordinator.
+Lifecycle actions share discovery's global four-request capacity, 60 attempts/minute and
+same-user concurrency fence across replicas. Authorize/callback/refresh each have a
+one-attempt-per-user-per-phase/minute cooldown that cannot be reset by restarting a worker.
+Local revocation is not blocked by capacity/rate denial; provider requests are skipped
+when no shared lease is available. Missing coordination/invalidation protection fails
+closed without a local network fallback. No anonymous callback page or login UI is added.
+
+This is credential lifecycle support using fictional/offline fixtures, not a connection
+to or import from a real OpenMetadata instance, and never invocation approval.
 
 Discovery sends only `initialize`, `notifications/initialized`, and advertised
 `tools/list`, `resources/list`, `prompts/list`. It validates the exact version/protocol
@@ -230,7 +301,8 @@ return 429 and `Retry-After: 60`. The coordination row contains only bounded lea
 hashed user scopes, counters and an invalidation revision—not credentials or inventories.
 
 Results are scoped to approval, instance/record, endpoint, deployed version, user/workspace,
-current bearer grant, evidence documents/content and permission revision. Access is
+current bearer grant, evidence documents/content and permission revision. OAuth evidence
+also binds to the current credential revision and expiry. Access is
 rechecked before lookup and after network I/O. Permission/grant and knowledge-document
 mutations (including direct SQL and truncation) transactionally advance a shared,
 monotonic invalidation revision. This deliberately invalidates all discovery evidence,

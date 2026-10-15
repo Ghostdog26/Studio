@@ -12,7 +12,12 @@ import { ListMcpDiscoveryEvidenceResponse, RefreshMcpDiscoveryEvidenceResponse }
 import { openMetadataEnterpriseStandard } from "@workspace/agent-runtime/enterprise-standards";
 import { createMcpDiscoveryRouter } from "../routes/mcp-discovery";
 import { DiscoveryFailure } from "./mcp-discovery-client";
-import { createDiscoveryCoordinator } from "./mcp-discovery-coordination";
+import { createDiscoveryCoordinator, type DiscoveryCoordinator, type DiscoveryLease } from "./mcp-discovery-coordination";
+import {
+  BeginMcpDiscoveryOAuthResponse, CompleteMcpDiscoveryOAuthResponse,
+  RefreshMcpDiscoveryOAuthResponse, RevokeMcpDiscoveryOAuthResponse,
+} from "@workspace/api-zod";
+import { DiscoveryOAuth } from "./mcp-discovery-oauth";
 
 function deferred() {
   let resolve!: () => void;
@@ -34,17 +39,47 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
   let secondServer: Server | undefined;
   let discoveries = 0;
   let mode: "success" | "revoke" | "denied" | "failed" = "success";
+  let oauth: DiscoveryOAuth | undefined;
+  let expectedOAuthAccess = "fictional-access";
   let beforeReturn: (() => Promise<void>) | undefined;
   const inventory = { serverInfo: { name: "fixture", version: "fixture-1" }, protocolVersion: "2025-03-26", tools: [], resources: [], prompts: [] };
   const rateKey = createHash("sha256").update(JSON.stringify({ workspaceId, userId })).digest("hex");
+  const rateKeys = [rateKey, ...["authorize", "callback", "refresh", "revoke"].map(oauthAction =>
+    createHash("sha256").update(JSON.stringify({ workspaceId, userId, oauthAction })).digest("hex"))];
+  const apiCoordinationId = `api-test-${fixtureId}`;
+  // Isolate test admission budgets from real API traffic and previous test runs.
+  // Authorization still uses the real trigger-backed, installation-wide epoch.
+  function harnessCoordinator(): DiscoveryCoordinator {
+    const admission = createDiscoveryCoordinator(apiCoordinationId);
+    const authority = createDiscoveryCoordinator();
+    const held = new Map<string, DiscoveryLease>();
+    return {
+      revision: () => authority.revision(),
+      async acquire(user, rateScope) {
+        const revision = await authority.revision();
+        const lease = await admission.acquire(user, rateScope);
+        if (!lease) return null;
+        held.set(lease.id, lease);
+        return { id: lease.id, revision };
+      },
+      async finish(lease) {
+        const original = held.get(lease.id);
+        if (!original) return false;
+        held.delete(lease.id);
+        const live = await admission.finish(original);
+        return live && lease.revision === await authority.revision();
+      },
+    };
+  }
   // DB time, not Date.now mocks, governs admission. Expire only this fixture's cooldown.
   const clearRate = () => db.execute(sql`
     UPDATE mcp_discovery_coordination SET state = jsonb_set(state, '{attempts}',
       COALESCE((SELECT jsonb_agg(a) FROM jsonb_array_elements(state->'attempts') a
-        WHERE a->>'user' <> ${rateKey}), '[]'::jsonb))
-    WHERE id = 'discovery'
+        WHERE NOT (${JSON.stringify(rateKeys)}::jsonb ? (a->>'user'))), '[]'::jsonb))
+    WHERE id = ${apiCoordinationId}
   `);
   try {
+    await db.execute(sql`INSERT INTO mcp_discovery_coordination (id) VALUES (${apiCoordinationId})`);
     await t.test("two independent coordinators atomically share slots, rate caps and expiring crash leases", async () => {
       const coordinationId = `test-${fixtureId}`;
       await db.execute(sql`INSERT INTO mcp_discovery_coordination (id) VALUES (${coordinationId})`);
@@ -64,6 +99,13 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
         assert.equal(sameUser.filter(Boolean).length, 1);
         await one.finish(sameUser.find(Boolean)!);
         assert.equal(await two.acquire("same-user"), null, "release must not erase the cooldown");
+        const phaseLease = await one.acquire("same-user", "oauth-callback");
+        assert.ok(phaseLease, "a distinct lifecycle phase has its own cooldown");
+        assert.equal(await two.acquire("same-user", "oauth-refresh"), null,
+          "lifecycle phases still share the same-user concurrency fence across replicas");
+        await one.finish(phaseLease);
+        assert.equal(await two.acquire("same-user", "oauth-callback"), null,
+          "phase cooldowns remain shared after release");
         await expire("attempts");
         await expire("globalAttempts");
         const admissions = await Promise.all(Array.from({ length: 8 }, (_, i) => (i % 2 ? one : two).acquire(`user-${i}`)));
@@ -133,14 +175,15 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
       if (server) await new Promise<void>(resolve => server!.close(() => resolve()));
       const app = express();
       app.use(express.json());
-      app.use(createMcpDiscoveryRouter(async () => {
+      app.use(createMcpDiscoveryRouter(async (approved, _signal, credential) => {
         discoveries++;
+        if (approved.oauth) assert.equal(credential, expectedOAuthAccess);
         if (mode === "revoke") await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
         if (mode === "denied") throw new DiscoveryFailure("remote-denied");
         if (mode === "failed") throw new Error("Untrusted upstream failure must not be returned");
         await beforeReturn?.();
         return inventory;
-      }));
+      }, harnessCoordinator(), oauth));
       // Private test harness only; no application workflow or enterprise network.
       server = createServer(app);
       await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
@@ -168,7 +211,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     assert.equal(discoveries, 1);
     const secondApp = express();
     secondApp.use(express.json());
-    secondApp.use(createMcpDiscoveryRouter(async () => { discoveries++; return inventory; }));
+    secondApp.use(createMcpDiscoveryRouter(async () => { discoveries++; return inventory; }, harnessCoordinator()));
     secondServer = createServer(secondApp);
     await new Promise<void>(resolve => secondServer!.listen(0, "127.0.0.1", resolve));
     const secondUrl = `http://127.0.0.1:${(secondServer.address() as { port: number }).port}/enterprise/mcp-discovery`;
@@ -251,7 +294,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
       beforeReturn = async () => {
         await db.execute(sql`UPDATE mcp_discovery_coordination SET state = jsonb_set(state, '{leases}',
           (SELECT jsonb_agg(CASE WHEN l->>'user' = ${rateKey} THEN jsonb_set(l, '{until}', '0'::jsonb) ELSE l END)
-            FROM jsonb_array_elements(state->'leases') l)) WHERE id = 'discovery'`);
+            FROM jsonb_array_elements(state->'leases') l)) WHERE id = ${apiCoordinationId}`);
       };
       assert.equal((await call("/fixture", "POST")).status, 403);
       assert.equal((await results())[0]!.inventory, null);
@@ -295,6 +338,122 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
       assert.equal(result.inventory, null);
       assert.equal(JSON.stringify(result).includes("Untrusted upstream"), false);
     }
+    // Keep OAuth lifecycle integration checks alongside the shared coordination checks:
+    // authorization mutations deliberately invalidate every scope, even on idle replicas.
+    mode = "success";
+    let providerCalls = 0;
+    let refreshDenied = false;
+    let revokeDuringExchange = false;
+    oauth = new DiscoveryOAuth(async (_endpoint, form) => {
+      providerCalls++;
+      if (revokeDuringExchange) {
+        await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
+      }
+      if (form.get("grant_type") === "refresh_token" && refreshDenied) throw new Error("invalid_grant");
+      return { status: 200, body: {
+        access_token: expectedOAuthAccess, token_type: "Bearer", refresh_token: "fictional-refresh", expires_in: 300,
+      } };
+    });
+    const oauthApproval = {
+      ...approval, credentialSecretRef: undefined,
+      oauth: {
+        authorizationEndpoint: "https://auth.example.com/authorize", tokenEndpoint: "https://auth.example.com/token",
+        revocationEndpoint: "https://auth.example.com/revoke", redirectUri: "https://app.example.com/oauth-return",
+        clientId: "fictional-client", scopes: ["metadata:read"],
+      },
+    };
+    const saveOAuthPolicy = (patch = {}) => writeFile(policyPath, JSON.stringify({
+      version: "1", approvals: [{ ...oauthApproval, ...patch }],
+    }));
+    const resetOAuthHarness = async () => { await startHarness(); await clearRate(); };
+    // Provision the alternate identity before state is issued: grant writes advance the epoch.
+    const otherToken = randomBytes(32).toString("hex");
+    await db.insert(enterpriseGrantsTable).values({
+      workspaceId, userId: "other-user", standardsVersion: version, templateId: "openmetadata-agent",
+      permittedTools: [], tokenHash: createHash("sha256").update(otherToken).digest("hex"),
+    });
+    await saveOAuthPolicy();
+    await resetOAuthHarness();
+    const begin = async () => {
+      const response = await call("/fixture/oauth/authorize", "POST", {});
+      assert.equal(response.status, 200);
+      const payload = BeginMcpDiscoveryOAuthResponse.parse(await response.json());
+      const url = new URL(payload.authorizationUrl);
+      return { state: url.searchParams.get("state"), code: "fictional-code", redirectUri: oauthApproval.oauth.redirectUri };
+    };
+    assert.equal((await results())[0]!.status, "denied");
+    assert.equal((await call("/fixture", "POST")).status, 403);
+    assert.equal((await call("/fixture/oauth/authorize", "POST", { userId: "someone-else" })).status, 400);
+    const callback = await begin();
+    assert.equal(providerCalls, 0, "begin and GET must not exchange tokens or discover");
+    assert.equal((await call("/fixture/oauth/callback", "POST", { ...callback, redirectUri: "https://other.example.com/callback" })).status, 403);
+    assert.equal(providerCalls, 0, "redirect substitution must fail before exchange");
+    await resetOAuthHarness();
+    const originalCallback = await begin();
+    assert.equal((await call("/fixture/oauth/callback", "POST", originalCallback, otherToken)).status, 403);
+    assert.equal(providerCalls, 0, "another valid enterprise identity must not consume the state");
+    const credentialResponse = await call("/fixture/oauth/callback", "POST", originalCallback);
+    assert.equal(credentialResponse.status, 200);
+    assert.equal(credentialResponse.headers.get("cache-control"), "no-store");
+    const credential = CompleteMcpDiscoveryOAuthResponse.parse(await credentialResponse.json());
+    assert.equal(JSON.stringify(credential).includes(expectedOAuthAccess), false);
+    assert.equal((await call("/fixture", "POST")).status, 200);
+    assert.equal((await results())[0]!.status, "verified");
+    assert.equal((await call("/fixture/oauth/refresh", "POST", credential, otherToken)).status, 403);
+    expectedOAuthAccess = "fictional-refreshed-access";
+    const refreshedResponse = await call("/fixture/oauth/refresh", "POST", { credentialReference: credential.credentialReference });
+    assert.equal(refreshedResponse.status, 200);
+    const refreshed = RefreshMcpDiscoveryOAuthResponse.parse(await refreshedResponse.json());
+    assert.notEqual(refreshed.credentialReference, credential.credentialReference);
+    assert.equal((await results())[0]!.status, "unknown", "refresh invalidates previous inventory");
+    const revoked = await call("/fixture/oauth/revoke", "POST", { credentialReference: refreshed.credentialReference });
+    assert.equal(revoked.status, 200);
+    assert.equal(RevokeMcpDiscoveryOAuthResponse.parse(await revoked.json()).revoked, true);
+    assert.equal((await results())[0]!.inventory, null);
+    assert.equal((await call("/fixture", "POST")).status, 403);
+    await resetOAuthHarness();
+    assert.equal((await call("/fixture/oauth/refresh", "POST", { credentialReference: refreshed.credentialReference })).status, 403);
+    await resetOAuthHarness();
+    const changedRedirect = await begin();
+    await saveOAuthPolicy({ oauth: { ...oauthApproval.oauth, redirectUri: "https://other.example.com/return" } });
+    const beforeChange = providerCalls;
+    assert.equal((await call("/fixture/oauth/callback", "POST", changedRedirect)).status, 403);
+    assert.equal(providerCalls, beforeChange, "operator redirect changes invalidate outstanding authorization");
+    await saveOAuthPolicy();
+    await resetOAuthHarness();
+    const nextCallback = await begin();
+    const nextResponse = await call("/fixture/oauth/callback", "POST", nextCallback);
+    assert.equal(nextResponse.status, 200);
+    const nextCredential = CompleteMcpDiscoveryOAuthResponse.parse(await nextResponse.json());
+    refreshDenied = true;
+    assert.equal((await call("/fixture/oauth/refresh", "POST", { credentialReference: nextCredential.credentialReference })).status, 403);
+    assert.equal((await results())[0]!.inventory, null);
+    assert.equal((await call("/fixture", "POST")).status, 403);
+    await resetOAuthHarness();
+    const deniedCallback = await begin();
+    assert.equal((await call("/fixture/oauth/callback", "POST", deniedCallback)).status, 200);
+    mode = "denied";
+    assert.equal((await call("/fixture", "POST")).status, 403);
+    assert.equal((await results())[0]!.status, "denied");
+    mode = "success";
+    await resetOAuthHarness();
+    const revokedPermissionCallback = await begin();
+    revokeDuringExchange = true;
+    assert.equal((await call("/fixture/oauth/callback", "POST", revokedPermissionCallback)).status, 403,
+      "permissions revoked during token exchange must discard the resulting credential");
+    revokeDuringExchange = false;
+    await db.insert(enterpriseDocumentGrantsTable).values({ workspaceId, userId, documentId });
+    assert.equal((await call("/fixture", "POST")).status, 403, "restored permissions must not recover a discarded credential");
+    await resetOAuthHarness();
+    const idleCallback = await begin();
+    assert.equal((await call("/fixture/oauth/callback", "POST", idleCallback)).status, 200);
+    await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
+    await db.insert(enterpriseDocumentGrantsTable).values({ workspaceId, userId, documentId });
+    assert.equal((await results())[0]!.status, "denied",
+      "revoke/restore while idle must invalidate OAuth credentials, not only discovery evidence");
+    assert.equal((await call("/fixture", "POST")).status, 403);
+    oauth = undefined;
+    await savePolicy();
     mode = "revoke";
     await startHarness();
     await clearRate();
@@ -344,7 +503,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     await db.delete(enterpriseStandardsTable).where(eq(enterpriseStandardsTable.version, version));
     if (documentId) await db.delete(knowledgeDocumentsTable).where(eq(knowledgeDocumentsTable.id, documentId));
     await rm(folder, { recursive: true, force: true });
-    await clearRate();
+    await db.execute(sql`DELETE FROM mcp_discovery_coordination WHERE id = ${apiCoordinationId}`);
     await pool.end();
   }
 });

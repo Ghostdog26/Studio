@@ -5,6 +5,41 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+export interface McpDiscoveryOAuthStartInput { [key: string]: unknown }
+
+export interface McpDiscoveryOAuthCallbackInput {
+  /** @pattern ^[A-Za-z0-9_-]{43}$ */
+  state: string;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     * @pattern ^[\x21-\x7e]+$
+     */
+  code: string;
+  /** @maxLength 2000 */
+  redirectUri: string;
+}
+
+export interface McpDiscoveryOAuthReferenceInput {
+  /** @pattern ^[A-Za-z0-9_-]{43}$ */
+  credentialReference: string;
+}
+
+export interface McpDiscoveryOAuthStart {
+  authorizationUrl: string;
+  expiresAt: string;
+}
+
+export interface McpDiscoveryOAuthCredential {
+  credentialReference: string;
+  expiresAt: string;
+}
+
+export interface McpDiscoveryOAuthRevocation {
+  revoked: true;
+  remoteRevoked: boolean;
+}
+
 export type McpDiscoveryEvidenceListMode = typeof McpDiscoveryEvidenceListMode[keyof typeof McpDiscoveryEvidenceListMode];
 
 

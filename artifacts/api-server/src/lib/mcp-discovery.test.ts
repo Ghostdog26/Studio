@@ -5,7 +5,7 @@ import { PassThrough } from "node:stream";
 import type { IncomingMessage } from "node:http";
 import { request, type RequestOptions } from "node:https";
 import { discoveryApprovalSchema, discoveryPolicySchema, approvedUrl, isPublicAddress, approvalIsCurrent } from "./mcp-discovery-policy";
-import { discoverMcp, networkExchange, type Exchange } from "./mcp-discovery-client";
+import { discoverMcp, networkExchange, oauthExchange, type Exchange } from "./mcp-discovery-client";
 
 const approval = discoveryApprovalSchema.parse({
   id: "fixture", layer: "catalogued-server", instanceId: "fictional-instance",
@@ -153,4 +153,33 @@ test("total deadline cancels hung DNS before any request sends credentials", asy
   const pending = exchange({ id: 1 });
   controller.abort();
   await assert.rejects(pending, /discovery-failed/);
+});
+
+test("OAuth form exchange shares redirect, DNS and response-size protections without forwarding MCP headers", async () => {
+  let status = 200;
+  let sent = 0;
+  const send = ((_url: URL, opts: RequestOptions, callback: (response: IncomingMessage) => void) => {
+    sent++;
+    assert.equal((opts.headers as Record<string, string>).Authorization, undefined);
+    assert.equal((opts.headers as Record<string, string>)["MCP-Protocol-Version"], undefined);
+    return Object.assign(new EventEmitter(), { end(body: string) {
+      assert.equal(body, "code=fictional-code&code_verifier=fictional-verifier");
+      const response = Object.assign(new PassThrough(), {
+        statusCode: status, headers: { "content-type": "application/json", location: "https://other.example.com/token" },
+      });
+      callback(response as unknown as IncomingMessage);
+      response.end('{"access_token":"fixture-only"}');
+    } });
+  }) as typeof request;
+  const form = new URLSearchParams({ code: "fictional-code", code_verifier: "fictional-verifier" });
+  const signal = new AbortController().signal;
+  const transport = { resolve: async () => [{ address: "8.8.8.8", family: 4 }], send };
+  await oauthExchange("https://auth.example.com/token", form, signal, transport);
+  status = 302;
+  await assert.rejects(oauthExchange("https://auth.example.com/token", form, signal, transport), /discovery-failed/);
+  assert.equal(sent, 2, "token redirect is never followed");
+  await assert.rejects(oauthExchange("https://auth.example.com/token", form, signal, {
+    ...transport, resolve: async () => [{ address: "10.0.0.1", family: 4 }],
+  }), /network-policy/);
+  assert.equal(sent, 2, "tokens must never be sent to private DNS answers");
 });

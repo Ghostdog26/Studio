@@ -7,6 +7,8 @@
  */
 import * as zod from 'zod';
 
+export const completeMcpDiscoveryOAuthBodyCodeMax = 4000;
+export const completeMcpDiscoveryOAuthBodyRedirectUriMax = 2000;
 export const discoverBuilderApproachesBodyGoalMin = 8;
 export const discoverBuilderApproachesBodyGoalMax = 2000;
 export const draftBuilderDefinitionBodyGoalMin = 8;
@@ -73,7 +75,7 @@ export const ListMcpDiscoveryEvidenceResponse = zod.object({
 
 
 /**
- * Empty body only. Uses an operator-provisioned credential reference and an
+ * Empty body only. Uses an operator-provisioned bearer secret or user-bound OAuth credential and an
  * initiating-user approval. Only initialize, initialized notification, and
  * tools/resources/prompts list are sent. Never executes tools, reads resources,
  * gets prompts, approves servers, installs code or enables runtime adapters.
@@ -126,6 +128,101 @@ export const RefreshMcpDiscoveryEvidenceResponse = zod.object({
 }),zod.null()]),
   "approvedForInvocation": zod.literal(false),
   "descriptionsAreUntrusted": zod.literal(true)
+})
+
+
+/**
+ * @summary Begin user-bound PKCE authorization for an already approved discovery endpoint
+ */
+export const beginMcpDiscoveryOAuthPathIdRegExp = new RegExp('^[a-z0-9-]{1,80}$');
+
+
+export const BeginMcpDiscoveryOAuthParams = zod.object({
+  "id": zod.coerce.string().regex(beginMcpDiscoveryOAuthPathIdRegExp)
+})
+
+export const BeginMcpDiscoveryOAuthBody = zod.object({
+
+})
+
+export const BeginMcpDiscoveryOAuthResponse = zod.object({
+  "authorizationUrl": zod.string().url(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * The operator-registered redirect handler forwards state and code using the same
+ * initiating-user enterprise capability. This is not an anonymous browser callback.
+ * No identity or redirect is inferred from headers, browser cookies, or OAuth metadata.
+ * @summary Exchange a one-time PKCE code using the original initiating-user capability
+ */
+export const completeMcpDiscoveryOAuthPathIdRegExp = new RegExp('^[a-z0-9-]{1,80}$');
+
+
+export const CompleteMcpDiscoveryOAuthParams = zod.object({
+  "id": zod.coerce.string().regex(completeMcpDiscoveryOAuthPathIdRegExp)
+})
+
+export const completeMcpDiscoveryOAuthBodyStateRegExp = new RegExp('^[A-Za-z0-9_-]{43}$');
+
+export const completeMcpDiscoveryOAuthBodyCodeRegExp = new RegExp('^[\\x21-\\x7e]+$');
+
+export const CompleteMcpDiscoveryOAuthBody = zod.object({
+  "state": zod.string().regex(completeMcpDiscoveryOAuthBodyStateRegExp),
+  "code": zod.string().min(1).max(completeMcpDiscoveryOAuthBodyCodeMax).regex(completeMcpDiscoveryOAuthBodyCodeRegExp),
+  "redirectUri": zod.string().url().max(completeMcpDiscoveryOAuthBodyRedirectUriMax)
+})
+
+export const CompleteMcpDiscoveryOAuthResponse = zod.object({
+  "credentialReference": zod.string(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Explicitly refresh the current user's discovery credential
+ */
+export const refreshMcpDiscoveryOAuthPathIdRegExp = new RegExp('^[a-z0-9-]{1,80}$');
+
+
+export const RefreshMcpDiscoveryOAuthParams = zod.object({
+  "id": zod.coerce.string().regex(refreshMcpDiscoveryOAuthPathIdRegExp)
+})
+
+export const refreshMcpDiscoveryOAuthBodyCredentialReferenceRegExp = new RegExp('^[A-Za-z0-9_-]{43}$');
+
+
+export const RefreshMcpDiscoveryOAuthBody = zod.object({
+  "credentialReference": zod.string().regex(refreshMcpDiscoveryOAuthBodyCredentialReferenceRegExp)
+})
+
+export const RefreshMcpDiscoveryOAuthResponse = zod.object({
+  "credentialReference": zod.string(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Immediately remove the user's discovery credential and attempt provider revocation
+ */
+export const revokeMcpDiscoveryOAuthPathIdRegExp = new RegExp('^[a-z0-9-]{1,80}$');
+
+
+export const RevokeMcpDiscoveryOAuthParams = zod.object({
+  "id": zod.coerce.string().regex(revokeMcpDiscoveryOAuthPathIdRegExp)
+})
+
+export const revokeMcpDiscoveryOAuthBodyCredentialReferenceRegExp = new RegExp('^[A-Za-z0-9_-]{43}$');
+
+
+export const RevokeMcpDiscoveryOAuthBody = zod.object({
+  "credentialReference": zod.string().regex(revokeMcpDiscoveryOAuthBodyCredentialReferenceRegExp)
+})
+
+export const RevokeMcpDiscoveryOAuthResponse = zod.object({
+  "revoked": zod.literal(true),
+  "remoteRevoked": zod.boolean()
 })
 
 

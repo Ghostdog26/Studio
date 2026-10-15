@@ -15,7 +15,7 @@ const invalidationInstalled = sql`(SELECT count(*) FROM pg_trigger
 export type DiscoveryLease = { id: string; revision: string };
 export interface DiscoveryCoordinator {
   revision(): Promise<string>;
-  acquire(user: string): Promise<DiscoveryLease | null>;
+  acquire(user: string, rateScope?: string): Promise<DiscoveryLease | null>;
   finish(lease: DiscoveryLease): Promise<boolean>;
 }
 
@@ -50,14 +50,14 @@ export function createDiscoveryCoordinator(coordinationId = "discovery"): Discov
       if (!result.rows[0]) throw new Error("Discovery invalidation unavailable");
       return String(result.rows[0].revision);
     },
-    acquire(user) {
+    acquire(user, rateScope = user) {
       return locked((state, now, revision) => {
         if (state.leases.length >= 4 || state.leases.some(l => l.user === user) ||
-            state.attempts.some(a => a.user === user) || state.attempts.length >= 1000 ||
+            state.attempts.some(a => a.user === rateScope) || state.attempts.length >= 1000 ||
             state.globalAttempts.length >= 60) return null;
         const id = randomUUID();
         state.leases.push({ id, user, until: now + 30_000 });
-        state.attempts.push({ user, until: now + 60_000 });
+        state.attempts.push({ user: rateScope, until: now + 60_000 });
         state.globalAttempts.push(now + 60_000);
         return { id, revision };
       });

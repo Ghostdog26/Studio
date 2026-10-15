@@ -34,7 +34,7 @@ paths:
       tags: [workspace]
       summary: Explicit authenticated discovery of one operator-approved endpoint
       description: |
-        Empty body only. Uses an operator-provisioned credential reference and an
+        Empty body only. Uses an operator-provisioned bearer secret or user-bound OAuth credential and an
         initiating-user approval. Only initialize, initialized notification, and
         tools/resources/prompts list are sent. Never executes tools, reads resources,
         gets prompts, approves servers, installs code or enables runtime adapters.
@@ -56,6 +56,105 @@ paths:
         "403": { description: "Missing, expired or revoked approval or evidence permission" }
         "429": { description: Per-user or global capacity limit reached }
         "503": { description: Invalid policy or unavailable authorization evidence }
+  /enterprise/mcp-discovery/{id}/oauth/authorize:
+    post:
+      operationId: beginMcpDiscoveryOAuth
+      tags: [workspace]
+      summary: Begin user-bound PKCE authorization for an already approved discovery endpoint
+      security: [{ EnterpriseCapability: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/McpDiscoveryOAuthStartInput" }
+      responses:
+        "200":
+          description: Operator-pinned authorization URL with short-lived user-bound state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpDiscoveryOAuthStart" }
+        "400": { description: Invalid request or caller-supplied settings }
+        "401": { description: Initiating-user capability required }
+        "403": { description: Missing or changed approval or evidence permission }
+        "429": { description: Discovery capacity or per-user action limit reached }
+        "503": { description: Policy unavailable }
+  /enterprise/mcp-discovery/{id}/oauth/callback:
+    post:
+      operationId: completeMcpDiscoveryOAuth
+      tags: [workspace]
+      summary: Exchange a one-time PKCE code using the original initiating-user capability
+      description: |
+        The operator-registered redirect handler forwards state and code using the same
+        initiating-user enterprise capability. This is not an anonymous browser callback.
+        No identity or redirect is inferred from headers, browser cookies, or OAuth metadata.
+      security: [{ EnterpriseCapability: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/McpDiscoveryOAuthCallbackInput" }
+      responses:
+        "200":
+          description: Opaque credential reference, never access or refresh tokens
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpDiscoveryOAuthCredential" }
+        "400": { description: Invalid callback }
+        "401": { description: Initiating-user capability required }
+        "403": { description: "State, redirect, approval or user binding rejected" }
+        "429": { description: Discovery capacity or per-user action limit reached }
+        "503": { description: Policy unavailable }
+  /enterprise/mcp-discovery/{id}/oauth/refresh:
+    post:
+      operationId: refreshMcpDiscoveryOAuth
+      tags: [workspace]
+      summary: Explicitly refresh the current user's discovery credential
+      security: [{ EnterpriseCapability: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/McpDiscoveryOAuthReferenceInput" }
+      responses:
+        "200":
+          description: Rotated user-bound credential reference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpDiscoveryOAuthCredential" }
+        "400": { description: Invalid request }
+        "401": { description: Initiating-user capability required }
+        "403": { description: "Credential revoked, expired approval or binding changed" }
+        "429": { description: Discovery capacity or per-user action limit reached }
+        "503": { description: Policy unavailable }
+  /enterprise/mcp-discovery/{id}/oauth/revoke:
+    post:
+      operationId: revokeMcpDiscoveryOAuth
+      tags: [workspace]
+      summary: Immediately remove the user's discovery credential and attempt provider revocation
+      security: [{ EnterpriseCapability: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, pattern: "^[a-z0-9-]{1,80}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/McpDiscoveryOAuthReferenceInput" }
+      responses:
+        "200":
+          description: Local revocation is complete; remoteRevoked reports provider acknowledgement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/McpDiscoveryOAuthRevocation" }
+        "400": { description: Invalid request }
+        "401": { description: Initiating-user capability required }
+        "403": { description: Credential or binding rejected }
+        "503": { description: Policy unavailable }
   /builder/discover:
     post:
       operationId: discoverBuilderApproaches
@@ -499,6 +598,41 @@ components:
       schema:
         type: integer
   schemas:
+    McpDiscoveryOAuthStartInput:
+      type: object
+      additionalProperties: false
+    McpDiscoveryOAuthCallbackInput:
+      type: object
+      additionalProperties: false
+      required: [state, code, redirectUri]
+      properties:
+        state: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+        code: { type: string, minLength: 1, maxLength: 4000, pattern: "^[\\x21-\\x7e]+$" }
+        redirectUri: { type: string, format: uri, maxLength: 2000 }
+    McpDiscoveryOAuthReferenceInput:
+      type: object
+      additionalProperties: false
+      required: [credentialReference]
+      properties:
+        credentialReference: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+    McpDiscoveryOAuthStart:
+      type: object
+      required: [authorizationUrl, expiresAt]
+      properties:
+        authorizationUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+    McpDiscoveryOAuthCredential:
+      type: object
+      required: [credentialReference, expiresAt]
+      properties:
+        credentialReference: { type: string }
+        expiresAt: { type: string, format: date-time }
+    McpDiscoveryOAuthRevocation:
+      type: object
+      required: [revoked, remoteRevoked]
+      properties:
+        revoked: { type: boolean, enum: [true] }
+        remoteRevoked: { type: boolean }
     McpDiscoveryEvidenceList:
       type: object
       required: [mode, results]

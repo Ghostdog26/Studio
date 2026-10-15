@@ -9,6 +9,16 @@ Do not infer enterprise access from membership in the shared Foundry demo worksp
 
 **How to apply:** Keep operator provisioning explicit until a trusted enterprise identity layer replaces it. Preserve the legacy shared control-plane behavior without treating it as an authorization source for generated agents.
 
+Discovery OAuth must not introduce an anonymous callback that selects a user from submitted
+identity fields or a shared demo session. A trusted application redirect handler must forward
+the authorization code using the original initiating user's enterprise capability.
+
+**Why:** The control plane has no trusted per-user browser session authority to bind a public
+OAuth redirect to enterprise permissions. OAuth consent alone does not establish that binding.
+
+**How to apply:** Preserve the authenticated callback-exchange boundary until a separately
+approved identity integration supplies a trusted browser-to-enterprise-user mapping.
+
 Document access restrictions must apply to every public read/write and cache path, not just the MCP interface. Revoking a grant must not re-publish previously restricted knowledge or reveal scoped query text.
 
 **Why:** A scoped bridge is bypassable when the same documents or scoped history remain visible through the public shared-workspace API.

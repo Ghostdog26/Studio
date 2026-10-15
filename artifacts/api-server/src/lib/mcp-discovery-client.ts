@@ -16,9 +16,33 @@ export function networkExchange(
   approval: DiscoveryApproval, credential: string, signal: AbortSignal,
   transport = { resolve: resolveAll, send: request },
 ): Exchange {
-  const url = approvedUrl(approval.endpoint);
+  const post = publicPost(approval.endpoint, signal, transport);
+  return (body, session) => post(JSON.stringify(body), {
+    Authorization: `Bearer ${credential}`, "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "MCP-Protocol-Version": approval.protocolVersion,
+    ...(session ? { "Mcp-Session-Id": session } : {}),
+  }, !("id" in body));
+}
+
+// OAuth uses the same DNS pinning, deadline, byte limits and no-redirect transport.
+// The caller supplies only operator-approved endpoints, never discovery metadata.
+export function oauthExchange(
+  endpoint: string, form: URLSearchParams, signal: AbortSignal,
+  transport = { resolve: resolveAll, send: request },
+) {
+  return publicPost(endpoint, signal, transport)(form.toString(), {
+    "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json",
+  }, true);
+}
+
+function publicPost(
+  endpoint: string, signal: AbortSignal,
+  transport: { resolve: typeof resolveAll; send: typeof request },
+) {
+  const url = approvedUrl(endpoint);
   let totalBytes = 0;
-  return async (body, session) => {
+  return async (body: string, headers: Record<string, string>, allowEmpty: boolean): Promise<Reply> => {
     signal.throwIfAborted();
     const addresses = await new Promise<Awaited<ReturnType<typeof resolveAll>>>((resolve, reject) => {
       const abort = () => reject(new DiscoveryFailure("discovery-failed"));
@@ -35,15 +59,10 @@ export function networkExchange(
         method: "POST", agent: false, family: pinned.family, signal, maxHeaderSize: 16 * 1024,
         // Pin the validated DNS result for this connection; TLS still verifies the original host.
         lookup: (_host, _options, callback) => callback(null, pinned.address, pinned.family),
-        headers: {
-          Authorization: `Bearer ${credential}`, "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          "MCP-Protocol-Version": approval.protocolVersion,
-          ...(session ? { "Mcp-Session-Id": session } : {}),
-        },
+        headers,
       }, response => {
         const status = response.statusCode ?? 0;
-        if (status === 401 || status === 403) {
+        if (status === 400 || status === 401 || status === 403) {
           response.destroy(); reject(new DiscoveryFailure("remote-denied")); return;
         }
         if (status < 200 || status >= 300 || response.headers["content-encoding"]) {
@@ -65,7 +84,7 @@ export function networkExchange(
         response.on("error", reject);
         response.on("end", () => {
           try {
-            if (!("id" in body) && (status === 202 || status === 204 || bytes === 0)) {
+            if (allowEmpty && (status === 202 || status === 204 || bytes === 0)) {
               resolve({ status, body: null, session: sessionHeader }); return;
             }
             const contentType = response.headers["content-type"] ?? "";
@@ -77,7 +96,7 @@ export function networkExchange(
         });
       });
       req.on("error", reject);
-      req.end(JSON.stringify(body));
+      req.end(body);
     });
   };
 }
