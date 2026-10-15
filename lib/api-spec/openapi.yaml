@@ -13,6 +13,44 @@ tags:
   - name: workspace
     description: Agent Foundry workspace operations
 paths:
+  /builder/discover:
+    post:
+      operationId: discoverBuilderApproaches
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuilderDiscoveryInput"
+      responses:
+        "200":
+          description: Grounded catalogue matches, not installed or approved servers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BuilderDiscovery" }
+        "400": { description: Invalid goal }
+  /builder/plan:
+    post:
+      operationId: draftBuilderDefinition
+      tags: [workspace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuilderPlanInput"
+      responses:
+        "200":
+          description: Unsaved AI specification for user review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BuilderPlan" }
+        "400": { description: Invalid request }
+        "404": { description: Catalogue reference not found }
+        "422": { description: Incompatible target or production gateway missing }
+        "429": { description: Planning capacity reached }
+        "502": { description: Planning failed; no definition saved }
   /enterprise/mcp:
     post:
       operationId: callEnterpriseMcp
@@ -417,6 +455,48 @@ components:
       schema:
         type: integer
   schemas:
+    BuilderDiscoveryInput:
+      type: object
+      required: [goal]
+      properties:
+        goal: { type: string, minLength: 8, maxLength: 2000 }
+    BuilderPlanInput:
+      type: object
+      required: [goal, catalogueId, language, target, transport]
+      properties:
+        goal: { type: string, minLength: 8, maxLength: 2000 }
+        catalogueId: { type: integer }
+        language: { type: string, enum: [typescript, javascript, python, go, csharp, rust, ruby, java, swift, php, kotlin] }
+        target: { type: string, enum: [cloudflare, openshell] }
+        transport: { type: string, enum: [stdio, streamable-http] }
+        dataSource: { type: string, maxLength: 1000 }
+        authRequirements: { type: string, maxLength: 1000 }
+    BuilderDiscovery:
+      type: object
+      required: [message, options]
+      properties:
+        message: { type: string }
+        options:
+          type: array
+          items:
+            type: object
+            required: [reference, rationale, considerations]
+            properties:
+              reference: { $ref: "#/components/schemas/McpCatalogueEntry" }
+              rationale: { type: string }
+              considerations: { type: array, items: { type: string } }
+    BuilderPlan:
+      type: object
+      required: [definition, generationInstructions, categories, referenceUrl, referenceRevision, sdkRepository, specificationRevision, reviewNotes]
+      properties:
+        definition: { $ref: "#/components/schemas/McpComponentInput" }
+        generationInstructions: { type: string }
+        categories: { type: array, items: { type: string } }
+        referenceUrl: { type: string }
+        referenceRevision: { type: string }
+        sdkRepository: { type: string }
+        specificationRevision: { type: string }
+        reviewNotes: { type: array, items: { type: string } }
     EnterpriseMcpInput:
       oneOf:
         - $ref: "#/components/schemas/EnterpriseRpc"
@@ -471,7 +551,7 @@ components:
         componentId: { type: integer, minimum: 1 }
         language: { type: string, enum: [typescript, javascript, python, go, csharp, rust, ruby, java, swift, php, kotlin] }
         target: { type: string, enum: [cloudflare, openshell] }
-        instructions: { type: string, maxLength: 3000 }
+        instructions: { type: string, maxLength: 6000 }
         categories: { type: array, maxItems: 12, uniqueItems: true, items: { type: string } }
     LanguageMcpPackage:
       type: object

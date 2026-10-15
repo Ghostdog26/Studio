@@ -8,7 +8,27 @@
 
 The source snapshots and SHA-256 checksums are at `vendor/mcp-official/`. These are selected reference sources, **not full clones of every SDK implementation or installed SDK environments**. Generated projects obtain SDK implementations through their declared package managers on a compatible build host.
 
-## Language choices
+## Guided discovery and build
+
+Open `/builder`, or select **Start guided build** from a catalogue entry:
+
+1. Describe a goal. Discovery ranks actual catalogue metadata; it is deterministic matching, not an LLM chat or verified capability inventory. Unmatched requests get an explicit no-match result.
+2. Select a real reference. Its source URL, directory revision, knowledge document and applicable category standards remain visible. No repository is installed or executed.
+3. Choose an official SDK language, compatible package target, transport, data source and access requirements. Never enter credentials. Cloudflare requires JavaScript/TypeScript and Streamable HTTP.
+4. Request an AI specification, then review/edit its name, description and input JSON Schema. Planning uses pinned official SDK/tool guidance and baseline/category standards; it does not obtain private enterprise documents through the public workspace API.
+5. Explicitly save the draft definition, then generate and download source from that saved definition. Saving is not release approval. Retrying package generation reuses the definition rather than saving another copy.
+
+Small journey metadata and the unsaved specification persist in the current browser tab's session storage. Generated source/archive bytes are not stored there. Saved definitions persist in PostgreSQL and are rechecked after returning to the page; deleted or changed definitions block generation until resolved. Unsaved work and downloaded package contents are not a durable release record.
+
+Planning and generation are development-only while the public workspace lacks an authenticated enterprise gateway. Neither endpoint enables Cloudflare OS execution, invokes a build sandbox, approves a release, or deploys an artifact. Real isolated build/protocol/security verification and an approval/deployment workflow remain separate work.
+
+Discovery regression tests:
+
+```sh
+node --experimental-strip-types --test artifacts/api-server/tests/builder-discovery.test.mjs
+```
+
+## Language selection
 
 The MCP components page offers TypeScript, JavaScript, Python, Go, C#, Rust, Ruby, Java, Swift, PHP, and Kotlin through the official SDK registry. Unknown languages fail explicitly; the system never silently generates TypeScript for a different requested language.
 

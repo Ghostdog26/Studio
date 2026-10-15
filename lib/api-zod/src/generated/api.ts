@@ -8,6 +8,118 @@
 import * as zod from 'zod';
 
 
+export const discoverBuilderApproachesBodyGoalMin = 8;
+export const discoverBuilderApproachesBodyGoalMax = 2000;
+
+
+
+export const DiscoverBuilderApproachesBody = zod.object({
+  "goal": zod.string().min(discoverBuilderApproachesBodyGoalMin).max(discoverBuilderApproachesBodyGoalMax)
+})
+
+export const DiscoverBuilderApproachesResponse = zod.object({
+  "message": zod.string(),
+  "options": zod.array(zod.object({
+  "reference": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "url": zod.string(),
+  "description": zod.string(),
+  "categories": zod.array(zod.string()),
+  "languages": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "platforms": zod.array(zod.string()),
+  "officialListed": zod.boolean(),
+  "reviewStatus": zod.enum(['unreviewed']),
+  "knowledgeId": zod.number().int().nullable(),
+  "sourceRevision": zod.string(),
+  "importedAt": zod.coerce.date()
+}),
+  "rationale": zod.string(),
+  "considerations": zod.array(zod.string())
+}))
+})
+
+
+export const draftBuilderDefinitionBodyGoalMin = 8;
+export const draftBuilderDefinitionBodyGoalMax = 2000;
+
+export const draftBuilderDefinitionBodyDataSourceMax = 1000;
+
+export const draftBuilderDefinitionBodyAuthRequirementsMax = 1000;
+
+
+
+export const DraftBuilderDefinitionBody = zod.object({
+  "goal": zod.string().min(draftBuilderDefinitionBodyGoalMin).max(draftBuilderDefinitionBodyGoalMax),
+  "catalogueId": zod.number().int(),
+  "language": zod.enum(['typescript', 'javascript', 'python', 'go', 'csharp', 'rust', 'ruby', 'java', 'swift', 'php', 'kotlin']),
+  "target": zod.enum(['cloudflare', 'openshell']),
+  "transport": zod.enum(['stdio', 'streamable-http']),
+  "dataSource": zod.string().max(draftBuilderDefinitionBodyDataSourceMax).optional(),
+  "authRequirements": zod.string().max(draftBuilderDefinitionBodyAuthRequirementsMax).optional()
+})
+
+
+
+
+export const DraftBuilderDefinitionResponse = zod.object({
+  "definition": zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string(),
+  "kind": zod.enum(['server', 'app']),
+  "transport": zod.string(),
+  "jsonSchema": zod.record(zod.string(), zod.unknown())
+}),
+  "generationInstructions": zod.string(),
+  "categories": zod.array(zod.string()),
+  "referenceUrl": zod.string(),
+  "referenceRevision": zod.string(),
+  "sdkRepository": zod.string(),
+  "specificationRevision": zod.string(),
+  "reviewNotes": zod.array(zod.string())
+})
+
+
+/**
+ * JSON-only stateless MCP endpoint. Generated packages use a bearer capability bound
+ * to one operator-managed workspace/user grant. Cloudflare OS may use the same scoped
+ * token with an identity envelope; both asserted IDs must match the token grant.
+ * A trusted server may instead submit x-foundry-signature: HMAC-SHA256 of the envelope
+ * JSON body using a purpose-separated bridge key and a timestamp within 60 seconds.
+ * Version/template selections must match the grant. No ambient wiki fallback is allowed.
+ * @summary Workspace and user scoped enterprise generation tools
+ */
+export const CallEnterpriseMcpHeader = zod.object({
+  "x-foundry-signature": zod.string().optional()
+})
+
+export const callEnterpriseMcpBodyTwoWorkspaceIdMax = 200;
+
+export const callEnterpriseMcpBodyTwoUserIdMax = 200;
+
+
+
+export const CallEnterpriseMcpBody = zod.union([zod.object({
+  "jsonrpc": zod.enum(['2.0']),
+  "id": zod.union([zod.string(),zod.number()]),
+  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
+  "params": zod.record(zod.string(), zod.unknown()).optional()
+}),zod.object({
+  "workspaceId": zod.string().min(1).max(callEnterpriseMcpBodyTwoWorkspaceIdMax),
+  "userId": zod.string().min(1).max(callEnterpriseMcpBodyTwoUserIdMax),
+  "timestamp": zod.number().int(),
+  "rpc": zod.object({
+  "jsonrpc": zod.enum(['2.0']),
+  "id": zod.union([zod.string(),zod.number()]),
+  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
+  "params": zod.record(zod.string(), zod.unknown()).optional()
+})
+})])
+
+export const CallEnterpriseMcpResponse = zod.record(zod.string(), zod.unknown())
+
+
 /**
  * Returns server health status
  * @summary Health check
@@ -61,6 +173,8 @@ export const ListKnowledgeResponse = zod.array(ListKnowledgeResponseItem)
  */
 
 
+
+
 export const CreateKnowledgeBody = zod.object({
   "title": zod.string().min(1),
   "content": zod.string().min(1),
@@ -84,6 +198,9 @@ export const CreateKnowledgeResponse = zod.object({
 export const UpdateKnowledgeParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
+
 
 
 export const UpdateKnowledgeBody = zod.object({
@@ -117,6 +234,7 @@ export const DeleteKnowledgeResponse = zod.void()
  * @summary Query the knowledge base with cached retrieval and reranking
  */
 export const queryKnowledgeBodyQueryMin = 2;
+
 
 
 export const QueryKnowledgeBody = zod.object({
@@ -158,6 +276,7 @@ export const ListAgentsResponse = zod.array(ListAgentsResponseItem)
  */
 
 
+
 export const CreateAgentBody = zod.object({
   "name": zod.string().min(1),
   "description": zod.string(),
@@ -186,6 +305,8 @@ export const CreateAgentResponse = zod.object({
 export const UpdateAgentParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateAgentBody = zod.object({
@@ -242,6 +363,7 @@ export const ListComponentsResponse = zod.array(ListComponentsResponseItem)
  */
 
 
+
 export const CreateComponentBody = zod.object({
   "name": zod.string().min(1),
   "description": zod.string(),
@@ -268,6 +390,8 @@ export const CreateComponentResponse = zod.object({
 export const UpdateComponentParams = zod.object({
   "id": zod.coerce.number().int()
 })
+
+
 
 
 export const UpdateComponentBody = zod.object({
@@ -306,6 +430,7 @@ export const DeleteComponentResponse = zod.void()
  */
 
 
+
 export const DownloadComponentPackageQueryParams = zod.object({
   "id": zod.coerce.number().int().min(1),
   "target": zod.enum(['cloudflare', 'openshell'])
@@ -334,6 +459,7 @@ export const listMcpCatalogueQueryPageDefault = 1;
 
 export const listMcpCatalogueQueryPageSizeDefault = 24;
 export const listMcpCatalogueQueryPageSizeMax = 100;
+
 
 
 export const ListMcpCatalogueQueryParams = zod.object({
@@ -387,6 +513,9 @@ export const ListMcpCatalogueResponse = zod.object({
   "importedAt": zod.coerce.date().nullable(),
   "knowledgeCount": zod.number().int()
 })
+
+
+
 
 
 export const GetMcpCatalogueEntryParams = zod.object({
@@ -445,9 +574,11 @@ export const ListMcpSdksResponse = zod.object({
 })
 
 
-export const generateLanguageMcpPackageBodyInstructionsMax = 3000;
+
+export const generateLanguageMcpPackageBodyInstructionsMax = 6000;
 
 export const generateLanguageMcpPackageBodyCategoriesMax = 12;
+
 
 
 export const GenerateLanguageMcpPackageBody = zod.object({
@@ -478,38 +609,3 @@ export const GenerateLanguageMcpPackageResponse = zod.object({
 })
 
 
-/**
- * JSON-only stateless MCP endpoint. Generated packages use a bearer capability bound
- * to one operator-managed workspace/user grant. Cloudflare OS may use the same scoped
- * token with an identity envelope; both asserted IDs must match the token grant.
- * A trusted server may instead submit x-foundry-signature: HMAC-SHA256 of the envelope
- * JSON body using a purpose-separated bridge key and a timestamp within 60 seconds.
- * Version/template selections must match the grant. No ambient wiki fallback is allowed.
- * @summary Workspace and user scoped enterprise generation tools
- */
-export const CallEnterpriseMcpHeader = zod.object({
-  "x-foundry-signature": zod.string().optional()
-})
-
-export const CallEnterpriseMcpResponse = zod.record(zod.string(), zod.unknown())
-
-export const callEnterpriseMcpBodyTwoUserIdMax = 200;
-
-export const CallEnterpriseMcpBody = zod.union([zod.object({
-  "jsonrpc": zod.enum(['2.0']),
-  "id": zod.union([zod.string(),zod.number()]),
-  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
-  "params": zod.record(zod.string(), zod.unknown()).optional()
-}),zod.object({
-  "workspaceId": zod.string().min(1).max(callEnterpriseMcpBodyTwoWorkspaceIdMax),
-  "userId": zod.string().min(1).max(callEnterpriseMcpBodyTwoUserIdMax),
-  "timestamp": zod.number().int(),
-  "rpc": zod.object({
-  "jsonrpc": zod.enum(['2.0']),
-  "id": zod.union([zod.string(),zod.number()]),
-  "method": zod.enum(['initialize', 'tools/list', 'tools/call']),
-  "params": zod.record(zod.string(), zod.unknown()).optional()
-})
-})])
-
-export const callEnterpriseMcpBodyTwoWorkspaceIdMax = 200;

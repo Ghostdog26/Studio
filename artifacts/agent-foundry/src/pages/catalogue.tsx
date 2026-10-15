@@ -82,6 +82,7 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
           {entry.knowledgeId != null
             ? <Link href={`/knowledge?document=${entry.knowledgeId}`} data-testid="link-entry-knowledge" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[11px] font-semibold hover:bg-muted"><BookOpen size={13} />Knowledge document</Link>
             : <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-[11px] text-muted-foreground"><BookOpen size={13} />No knowledge document</span>}
+          <Link href={`/builder?catalogueId=${entry.id}`} data-testid="link-entry-builder" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:brightness-95"><ChevronRight size={13} />Start guided build</Link>
           {standardsKnowledgeId != null && <Link href={`/knowledge?document=${standardsKnowledgeId}`} data-testid="link-standards-knowledge" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[11px] font-semibold hover:bg-muted"><Library size={13} />Builder standards</Link>}
         </div>
         <ReviewStandards standards={reviewStandards} />

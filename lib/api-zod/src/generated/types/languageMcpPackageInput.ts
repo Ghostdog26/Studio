@@ -13,7 +13,7 @@ export interface LanguageMcpPackageInput {
   componentId: number;
   language: LanguageMcpPackageInputLanguage;
   target: LanguageMcpPackageInputTarget;
-  /** @maxLength 3000 */
+  /** @maxLength 6000 */
   instructions?: string;
   /** @maxItems 12 */
   categories?: string[];

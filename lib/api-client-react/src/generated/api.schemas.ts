@@ -5,6 +5,170 @@
  * Portable agent workspace API
  * OpenAPI spec version: 0.1.0
  */
+export interface BuilderDiscoveryInput {
+  /**
+     * @minLength 8
+     * @maxLength 2000
+     */
+  goal: string;
+}
+
+export type BuilderPlanInputLanguage = typeof BuilderPlanInputLanguage[keyof typeof BuilderPlanInputLanguage];
+
+
+export const BuilderPlanInputLanguage = {
+  typescript: 'typescript',
+  javascript: 'javascript',
+  python: 'python',
+  go: 'go',
+  csharp: 'csharp',
+  rust: 'rust',
+  ruby: 'ruby',
+  java: 'java',
+  swift: 'swift',
+  php: 'php',
+  kotlin: 'kotlin',
+} as const;
+
+export type BuilderPlanInputTarget = typeof BuilderPlanInputTarget[keyof typeof BuilderPlanInputTarget];
+
+
+export const BuilderPlanInputTarget = {
+  cloudflare: 'cloudflare',
+  openshell: 'openshell',
+} as const;
+
+export type BuilderPlanInputTransport = typeof BuilderPlanInputTransport[keyof typeof BuilderPlanInputTransport];
+
+
+export const BuilderPlanInputTransport = {
+  stdio: 'stdio',
+  'streamable-http': 'streamable-http',
+} as const;
+
+export interface BuilderPlanInput {
+  /**
+     * @minLength 8
+     * @maxLength 2000
+     */
+  goal: string;
+  catalogueId: number;
+  language: BuilderPlanInputLanguage;
+  target: BuilderPlanInputTarget;
+  transport: BuilderPlanInputTransport;
+  /** @maxLength 1000 */
+  dataSource?: string;
+  /** @maxLength 1000 */
+  authRequirements?: string;
+}
+
+export type McpCatalogueEntryReviewStatus = typeof McpCatalogueEntryReviewStatus[keyof typeof McpCatalogueEntryReviewStatus];
+
+
+export const McpCatalogueEntryReviewStatus = {
+  unreviewed: 'unreviewed',
+} as const;
+
+export interface McpCatalogueEntry {
+  id: number;
+  name: string;
+  url: string;
+  description: string;
+  categories: string[];
+  languages: string[];
+  scopes: string[];
+  platforms: string[];
+  officialListed: boolean;
+  reviewStatus: McpCatalogueEntryReviewStatus;
+  /** @nullable */
+  knowledgeId: number | null;
+  sourceRevision: string;
+  importedAt: string;
+}
+
+export type BuilderDiscoveryOptionsItem = {
+  reference: McpCatalogueEntry;
+  rationale: string;
+  considerations: string[];
+};
+
+export interface BuilderDiscovery {
+  message: string;
+  options: BuilderDiscoveryOptionsItem[];
+}
+
+export type McpComponentInputKind = typeof McpComponentInputKind[keyof typeof McpComponentInputKind];
+
+
+export const McpComponentInputKind = {
+  server: 'server',
+  app: 'app',
+} as const;
+
+export type McpComponentInputJsonSchema = { [key: string]: unknown };
+
+export interface McpComponentInput {
+  /** @minLength 1 */
+  name: string;
+  description: string;
+  kind: McpComponentInputKind;
+  transport: string;
+  jsonSchema: McpComponentInputJsonSchema;
+}
+
+export interface BuilderPlan {
+  definition: McpComponentInput;
+  generationInstructions: string;
+  categories: string[];
+  referenceUrl: string;
+  referenceRevision: string;
+  sdkRepository: string;
+  specificationRevision: string;
+  reviewNotes: string[];
+}
+
+export type EnterpriseRpcJsonrpc = typeof EnterpriseRpcJsonrpc[keyof typeof EnterpriseRpcJsonrpc];
+
+
+export const EnterpriseRpcJsonrpc = {
+  '20': '2.0',
+} as const;
+
+export type EnterpriseRpcMethod = typeof EnterpriseRpcMethod[keyof typeof EnterpriseRpcMethod];
+
+
+export const EnterpriseRpcMethod = {
+  initialize: 'initialize',
+  'tools/list': 'tools/list',
+  'tools/call': 'tools/call',
+} as const;
+
+export type EnterpriseRpcParams = { [key: string]: unknown };
+
+export interface EnterpriseRpc {
+  jsonrpc: EnterpriseRpcJsonrpc;
+  id: string | number;
+  method: EnterpriseRpcMethod;
+  params?: EnterpriseRpcParams;
+}
+
+export interface EnterpriseBridgeAssertion {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  workspaceId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  userId: string;
+  timestamp: number;
+  rpc: EnterpriseRpc;
+}
+
+export type EnterpriseMcpInput = EnterpriseRpc | EnterpriseBridgeAssertion;
+
 export type McpSdkTargetsItem = typeof McpSdkTargetsItem[keyof typeof McpSdkTargetsItem];
 
 
@@ -64,7 +228,7 @@ export interface LanguageMcpPackageInput {
   componentId: number;
   language: LanguageMcpPackageInputLanguage;
   target: LanguageMcpPackageInputTarget;
-  /** @maxLength 3000 */
+  /** @maxLength 6000 */
   instructions?: string;
   /** @maxItems 12 */
   categories?: string[];
@@ -103,30 +267,6 @@ export interface LanguageMcpPackage {
   deploymentStatus: LanguageMcpPackageDeploymentStatus;
   files: McpProjectFile[];
   appliedCategories: string[];
-}
-
-export type McpCatalogueEntryReviewStatus = typeof McpCatalogueEntryReviewStatus[keyof typeof McpCatalogueEntryReviewStatus];
-
-
-export const McpCatalogueEntryReviewStatus = {
-  unreviewed: 'unreviewed',
-} as const;
-
-export interface McpCatalogueEntry {
-  id: number;
-  name: string;
-  url: string;
-  description: string;
-  categories: string[];
-  languages: string[];
-  scopes: string[];
-  platforms: string[];
-  officialListed: boolean;
-  reviewStatus: McpCatalogueEntryReviewStatus;
-  /** @nullable */
-  knowledgeId: number | null;
-  sourceRevision: string;
-  importedAt: string;
 }
 
 export interface McpCatalogueFacet {
@@ -354,25 +494,6 @@ export interface McpComponent {
   updatedAt: string;
 }
 
-export type McpComponentInputKind = typeof McpComponentInputKind[keyof typeof McpComponentInputKind];
-
-
-export const McpComponentInputKind = {
-  server: 'server',
-  app: 'app',
-} as const;
-
-export type McpComponentInputJsonSchema = { [key: string]: unknown };
-
-export interface McpComponentInput {
-  /** @minLength 1 */
-  name: string;
-  description: string;
-  kind: McpComponentInputKind;
-  transport: string;
-  jsonSchema: McpComponentInputJsonSchema;
-}
-
 export type McpComponentUpdateKind = typeof McpComponentUpdateKind[keyof typeof McpComponentUpdateKind];
 
 
@@ -402,6 +523,7 @@ export interface McpComponentUpdate {
 }
 
 export type CallEnterpriseMcp200 = { [key: string]: unknown };
+
 export type DownloadComponentPackageParams = {
 /**
  * @minimum 1
@@ -446,50 +568,3 @@ export const ListMcpCatalogueFocus = {
   priority: 'priority',
 } as const;
 
-
-/**
- * Generated by orval 🍺
- * Do not edit manually.
- * Api
- * Portable agent workspace API
- * OpenAPI spec version: 0.1.0
- */
-export type EnterpriseRpcJsonrpc = typeof EnterpriseRpcJsonrpc[keyof typeof EnterpriseRpcJsonrpc];
-
-export type EnterpriseRpcParams = { [key: string]: unknown };
-
-export type EnterpriseRpcMethod = typeof EnterpriseRpcMethod[keyof typeof EnterpriseRpcMethod];
-
-export interface EnterpriseRpc {
-  jsonrpc: EnterpriseRpcJsonrpc;
-  id: string | number;
-  method: EnterpriseRpcMethod;
-  params?: EnterpriseRpcParams;
-}
-
-export const EnterpriseRpcMethod = {
-  initialize: 'initialize',
-  'tools/list': 'tools/list',
-  'tools/call': 'tools/call',
-} as const;
-
-export const EnterpriseRpcJsonrpc = {
-  '20': '2.0',
-} as const;
-
-export interface EnterpriseBridgeAssertion {
-  /**
-     * @minLength 1
-     * @maxLength 200
-     */
-  workspaceId: string;
-  /**
-     * @minLength 1
-     * @maxLength 200
-     */
-  userId: string;
-  timestamp: number;
-  rpc: EnterpriseRpc;
-}
-
-export type EnterpriseMcpInput = EnterpriseRpc | EnterpriseBridgeAssertion;

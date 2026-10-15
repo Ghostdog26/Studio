@@ -112,7 +112,7 @@ export function LanguageGenerator({ components }: { components: McpComponent[] }
   );
 }
 
-function GeneratedView({ pkg, openFile, setOpenFile }: { pkg: LanguageMcpPackage; openFile: number; setOpenFile: (i: number) => void }) {
+export function GeneratedView({ pkg, openFile, setOpenFile }: { pkg: LanguageMcpPackage; openFile: number; setOpenFile: (i: number) => void }) {
   const file = pkg.files[openFile];
   return (
     <div data-testid="panel-generated-package">
