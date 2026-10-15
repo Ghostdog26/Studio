@@ -15,8 +15,8 @@ Keep package generation independent of provider credentials. The initial NVIDIA 
 
 **How to apply:** Distinguish generated/build-verified packages from actual remote deployments. Do not describe an OpenShell gateway or Cloudflare account as connected without verifying it.
 
-The user wants Cloudflare's runtime and NVIDIA OpenShell to run as containers on Replit infrastructure, not on their local machine or an external host.
+The user wants the actual Cloudflare OS project (https://github.com/cloudflare/cloudflare-os), which runs on workerd, and NVIDIA OpenShell hosted on Replit infrastructure, not on their local machine or an external host. Cloudflare OS does not mean bare workerd or the entire managed Cloudflare platform.
 
 **Why:** The user explicitly corrected the proposed self-hosted deployment location.
 
-**How to apply:** Do not substitute an off-platform Docker deployment for this requirement. Explain Replit's container-hosting limitations before proposing a different architecture; package downloads alone do not satisfy the requested hosted runtimes.
+**How to apply:** Inspect the Cloudflare OS project's own self-hosting path rather than assuming all Cloudflare services are required. Do not substitute an off-platform Docker deployment or bare workerd for this requirement. Explain Replit's container-hosting limitations before proposing a different architecture; package downloads alone do not satisfy the requested hosted runtimes.
