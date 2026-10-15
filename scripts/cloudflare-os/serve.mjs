@@ -5,12 +5,18 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import source from './source.json' with { type: 'json' };
+import { assertPreviewAllowed } from './hosting-policy.mjs';
+import { startStatusServer } from './status-server.mjs';
 
 const root = fileURLToPath(new URL('../../vendor/cloudflare-os/', import.meta.url));
 const prefix = '/cloudflare-os';
 const port = Number(process.env.PORT);
 const upstreamPort = 8787;
-if (!Number.isInteger(port) || port < 1) throw new Error('A valid PORT is required.');
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('A valid PORT is required.');
+if (!assertPreviewAllowed(process.argv.slice(2), process.env.NODE_ENV)) {
+  startStatusServer(port);
+} else {
+console.warn('UNSAFE TRUSTED PREVIEW ONLY: ephemeral data, no enterprise isolation or identity guarantees.');
 if (!existsSync(`${root}/packages/workshop-frontend/dist/index.html`)) {
   throw new Error('Run node scripts/cloudflare-os/prepare.mjs before starting Cloudflare OS.');
 }
@@ -134,4 +140,5 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
     const deadline = setTimeout(() => process.exit(1), 12000);
     child.once('exit', () => { clearTimeout(deadline); process.exit(0); });
   });
+}
 }

@@ -20,3 +20,16 @@ The upstream development runner assigns administrative access to an account name
 **Why:** A local-development assumption is not an authorization policy for shared infrastructure.
 
 **How to apply:** Keep preview administrator assignment explicit, and reassess development-only assumptions whenever importing an upstream local runner.
+
+Production suitability must not be inferred from Reserved VM always-on compute.
+The published filesystem is not a supported durable volume for workerd's SQLite
+DO storage; database/object services are not drop-in DO/KV/R2 bindings.
+
+**Why:** Replit publishing guidance warns against relying on filesystem writes,
+and upstream workerd exposes local-disk or in-memory DO storage. workerd also
+explicitly requires additional sandboxing for possibly malicious code.
+
+**How to apply:** Recheck current platform and upstream contracts before enabling
+enterprise hosting. Keep execution disabled when persistence or isolation cannot
+be verified; never substitute Docker/privileged workarounds or an external host
+for the user's Replit-only requirement.

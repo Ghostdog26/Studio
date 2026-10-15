@@ -57,7 +57,9 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 - Provenance: `scripts/cloudflare-os/source.json`.
 - Prepare: `pnpm --filter @workspace/scripts run cloudflare-os:prepare`.
 - Managed service: `artifacts/agent-foundry: Cloudflare OS`, preview path `/cloudflare-os/`, readiness `/cloudflare-os/healthz`.
-- This service runs upstream's **development** Wrangler/workerd stack, not Docker and not a production self-hosted deployment.
+- The managed service now serves a **non-executing blocked-hosting status page**. `/cloudflare-os/livez` is process liveness; `/cloudflare-os/healthz` returns 503 because no supported OS runtime is ready.
+- `pnpm --filter @workspace/scripts run cloudflare-os:preview` explicitly opts into the unsafe trusted-development Wrangler/workerd runner; it is not production hosting and must not receive production data/secrets.
+- `pnpm --filter @workspace/scripts run cloudflare-os:production-check` deliberately fails with concrete hosting blockers; `cloudflare-os:test` verifies the safety gate.
 - Its accounts and local Durable Object storage are separate from Agent Foundry's PostgreSQL data. It does not make the Cloudflare execution adapter connected.
 - See `docs/cloudflare-os-replit.md` for hosting limitations and `docs/enterprise-factory.md` for the intended knowledge → generation → human approval → fixed-release workflow.
 

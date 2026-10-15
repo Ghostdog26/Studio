@@ -6,6 +6,9 @@
   "scripts": {
     "cloudflare-os:prepare": "node ./cloudflare-os/prepare.mjs",
     "cloudflare-os:serve": "node ./cloudflare-os/serve.mjs",
+    "cloudflare-os:preview": "node ./cloudflare-os/serve.mjs --unsafe-trusted-preview",
+    "cloudflare-os:production-check": "node ./cloudflare-os/production-check.mjs",
+    "cloudflare-os:test": "node --test ./cloudflare-os/hosting.test.mjs",
     "hello": "tsx ./src/hello.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
