@@ -7,3 +7,67 @@ uri = "file://artifacts/control-plane-overview/public/audio/bg_music.mp3"
 type = "audio"
 title = "background music"
 description = "Generated music: Driving minimal electronic instrumental for an enterprise AI platform overview. Tight pulsing synth bass, crisp hi-hats, warm pads, 120 BPM, confident and precise. Punchy start, clea…"
+logical_id = "779279a6-493b-4912-b348-c72f012de655"
+
+[[outputs]]
+id = "RzOITDN0ZpY1cS4NcZwl0"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_intro.mp3"
+type = "audio"
+title = "intro"
+description = "Text-to-speech audio: Most teams hand-code every integration separately. Control Plane gives them one shared foundation instead."
+
+[[outputs]]
+id = "RNwIcwqMuzEfU5YXl7b8j"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_overview.mp3"
+type = "audio"
+title = "overview"
+description = "Text-to-speech audio: The overview puts shared knowledge, agent definitions and MCP components in one place, and says plainly that runtimes aren't connected yet."
+
+[[outputs]]
+id = "kM2sUFTAYRERFXrifrCyF"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_knowledge.mp3"
+type = "audio"
+title = "knowledge"
+description = "Text-to-speech audio: Knowledge comes with receipts. Answers cite their sources, so teams build on context they can actually check."
+
+[[outputs]]
+id = "xCE9E72VbM-1A-KrbYC76"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_catalogue.mp3"
+type = "audio"
+title = "catalogue"
+description = "Text-to-speech audio: The catalogue starts from what already exists: over four thousand community references, treated as unreviewed until someone checks them."
+
+[[outputs]]
+id = "pd4xpvC1tfhk74hSLE9St"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_builder.mp3"
+type = "audio"
+title = "builder"
+description = "Text-to-speech audio: The guided builder turns a plain-language goal into a reviewable package. Matching is deterministic. AI only drafts the specification."
+
+[[outputs]]
+id = "eMzQUQw4HSTKuLnFD88uE"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_mcp.mp3"
+type = "audio"
+title = "mcp"
+description = "Text-to-speech audio: Servers are grounded in the official MCP specification and SDKs, across eleven languages, with provenance attached."
+
+[[outputs]]
+id = "Wztp7H1QAixWeTpM6_OZC"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_agents.mp3"
+type = "audio"
+title = "agents"
+description = "Text-to-speech audio: Agents become saved, portable definitions. Instructions, input schema and model, written once, for any runtime."
+
+[[outputs]]
+id = "Yb0GBV_pHqe2rY8paCBIx"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_outro.mp3"
+type = "audio"
+title = "outro"
+description = "Text-to-speech audio: And saving is not approval. People review, and verification stays separate. Control Plane. Build from shared context."
+
+[[outputs]]
+id = "Aw6BD6CwsXT2AJ45uAzE-"
+uri = "file://artifacts/control-plane-ui-tour/public/audio/bg_music.mp3"
+type = "audio"
+title = "bed"
+description = "Generated music: Ambient atmospheric instrumental under a calm product walkthrough voiceover. Soft warm synth pads, gentle pulsing plucks, light muted percussion, 90 BPM, thoughtful and confident, st…"

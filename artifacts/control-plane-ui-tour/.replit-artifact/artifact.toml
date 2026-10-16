@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/control-plane-ui-tour/"
+title = "Control Plane — UI walkthrough"
+description = "A narrated product walkthrough showing the real Control Plane interface pages and explaining the value of shared knowledge, MCP catalogue discovery, standardized agents, guided building and reviewable packages."
+version = "1.0.0"
+id = "artifacts/control-plane-ui-tour"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/control-plane-ui-tour/" ]
+localPort = 19908
+
+[services.development]
+run = "pnpm --filter @workspace/control-plane-ui-tour run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/control-plane-ui-tour", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/control-plane-ui-tour/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19908"
+BASE_PATH = "/control-plane-ui-tour/"
