@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "LqXwQT8TwhHZf9ta3eIBJ"
+uri = "file://artifacts/control-plane-overview/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+description = "Generated music: Driving minimal electronic instrumental for an enterprise AI platform overview. Tight pulsing synth bass, crisp hi-hats, warm pads, 120 BPM, confident and precise. Punchy start, clea…"

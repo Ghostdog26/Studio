@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/control-plane-overview/"
+title = "Control Plane — 30-second overview"
+description = "A 30-second product overview of Control Plane: enterprise knowledge, catalogue-backed discovery, standardized agents and MCP server/app creation, with human review and truthful runtime readiness."
+version = "1.0.0"
+id = "artifacts/control-plane-overview"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/control-plane-overview/" ]
+localPort = 21672
+
+[services.development]
+run = "pnpm --filter @workspace/control-plane-overview run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/control-plane-overview", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/control-plane-overview/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21672"
+BASE_PATH = "/control-plane-overview/"
