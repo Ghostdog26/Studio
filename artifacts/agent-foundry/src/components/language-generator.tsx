@@ -133,7 +133,7 @@ export function GeneratedView({ pkg, openFile, setOpenFile }: { pkg: LanguageMcp
         <div className="flex gap-1 overflow-x-auto border-b border-border bg-muted/40 p-1.5">{pkg.files.map((f, i) => <button key={f.path} type="button" onClick={() => setOpenFile(i)} data-testid={`tab-generated-file-${i}`} className={`foundry-mono shrink-0 rounded px-2 py-1 text-[10px] ${i === openFile ? 'bg-card font-semibold text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{f.path}</button>)}</div>
         {file ? <pre className="foundry-mono max-h-[420px] overflow-auto whitespace-pre bg-[#202a31] p-3.5 text-[10.5px] leading-relaxed text-[#d9e4dc]" data-testid="text-generated-file">{file.content}</pre> : <div className="p-4 text-xs text-muted-foreground">The package contains no files.</div>}
       </div>
-      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Review every file before use. Agent Foundry has not compiled, tested, executed, or audited this source.</p>
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">Review every file before use. Control Plane has not compiled, tested, executed, or audited this source.</p>
     </div>
   );
 }

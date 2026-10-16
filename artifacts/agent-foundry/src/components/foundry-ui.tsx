@@ -38,8 +38,8 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
             <Layers3 size={21} strokeWidth={2.3} />
           </div>
           <div>
-            <div className="foundry-display text-lg font-bold tracking-tight">Agent Foundry</div>
-            <div className="foundry-mono mt-0.5 text-[9px] uppercase tracking-[0.19em] text-sidebar-foreground/55">Shared intelligence</div>
+            <div className="foundry-display text-lg font-bold tracking-tight">Control Plane</div>
+            <div className="foundry-mono mt-0.5 text-[9px] uppercase tracking-[0.19em] text-sidebar-foreground/55">Knowledge &amp; AI</div>
           </div>
         </div>
         <div className="px-4">
@@ -77,7 +77,7 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
             </Link>
           </div>
           <div className="flex items-center justify-between border-t border-sidebar-border px-2 pt-4 text-[10px] text-sidebar-foreground/45">
-            <span>FOUNDRY WORKSPACE</span>
+            <span>CONTROL PLANE WORKSPACE</span>
             <span className="foundry-mono">v0.1</span>
           </div>
         </div>
@@ -86,10 +86,10 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border/80 bg-background/95 px-5 backdrop-blur md:px-10">
           <div className="flex items-center gap-2 md:hidden">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-sidebar text-sidebar-primary"><Layers3 size={17} /></div>
-            <span className="foundry-display text-sm font-bold">Agent Foundry</span>
+            <span className="foundry-display text-sm font-bold">Control Plane</span>
           </div>
           <div className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex">
-            <span>OPERATIONS</span><span className="text-border">/</span><span className="font-medium text-foreground">PORTABLE AGENT INFRASTRUCTURE</span>
+            <span>OPERATIONS</span><span className="text-border">/</span><span className="font-medium text-foreground">ENTERPRISE KNOWLEDGE &amp; AI DELIVERY</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="foundry-mono hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:inline">Shared workspace</span>

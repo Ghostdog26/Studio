@@ -56,6 +56,7 @@ const topics = [
 ];
 export const openMetadataDocuments = topics.map(topic => ({
   title: topic.title,
+  // Persisted importer identity, also used by the reference panel. Do not rebrand this key.
   source: `Agent Foundry managed OpenMetadata reference | ${topic.key}`,
   tags: ["OpenMetadata", "reference-only", `reference-v${OPENMETADATA_REFERENCE_VERSION}`, ...topic.tags],
   content: `# ${topic.title}

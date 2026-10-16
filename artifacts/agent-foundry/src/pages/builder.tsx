@@ -25,6 +25,7 @@ const EXAMPLES = [
   'A tool that searches our internal documentation and returns cited passages.',
   'Help me build an MCP server for browser automation to capture page screenshots.',
 ];
+// Keep the pre-rebrand key/version so existing journeys remain available.
 const STORAGE_KEY = 'agent-foundry.builder.journey';
 const STORAGE_VERSION = 1;
 

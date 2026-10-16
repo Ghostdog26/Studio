@@ -1,6 +1,6 @@
 # MCP reference catalogue
 
-Agent Foundry imports the **directory metadata** from [punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers), not the implementation code of every listed server.
+Control Plane imports the **directory metadata** from [punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers), not the implementation code of every listed server.
 
 OpenMetadata is a separate [enterprise context reference profile](openmetadata-context.md),
 not a replacement for this community directory. Its own MCP interface, catalogue records
@@ -8,7 +8,7 @@ describing other MCP servers and live authenticated discovery are distinct layer
 
 ## Using it
 
-- Open **Catalogue** in the Agent Foundry navigation.
+- Open **Catalogue** in the Control Plane navigation.
 - Search by name/description, filter by category, language, or service scope, and browse paginated results.
 - Select an entry for its repository link, linked knowledge document, and a copyable AI builder brief.
 - Use **Priority areas** to focus on the twelve requested enterprise categories; their details and briefs include domain-specific requirements, evidence requests, and acceptance tests. These are required reviews, not completed audits.
@@ -19,7 +19,7 @@ describing other MCP servers and live authenticated discovery are distinct layer
 
 The pinned directory revision is in `artifacts/api-server/mcp-catalogue-source.json`. Each row records that revision and its import time; this is a snapshot, not a live claim about current repository status. The directory's MIT license is retained at `docs/third-party/awesome-mcp-servers-LICENSE.txt`. Every listed implementation has its own license, which must be checked separately.
 
-All references are **unreviewed**. “Listed official” only reflects the upstream directory's label, not Agent Foundry verification. Scope refers to the service connected to, not the transport used by MCP. Unknown metadata is not inferred.
+All references are **unreviewed**. “Listed official” only reflects the upstream directory's label, not Control Plane verification. Scope refers to the service connected to, not the transport used by MCP. Unknown metadata is not inferred.
 
 Importing does not clone, install, connect, execute, audit, or approve the listed servers. Catalogue text is untrusted reference data; AI must not treat it as executable instructions. Before reuse, inspect source, permissions, dependencies, supported protocol/transport, tenancy, and license, then review the exact build before deployment.
 

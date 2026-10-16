@@ -9,7 +9,7 @@ const page = `<!doctype html>
 <body><h1>Cloudflare OS is not production-ready on this host</h1>
 <p>Execution is disabled. The development runner is not a persistent enterprise service.</p>
 <ul>${hostingReport().blockers.map(b => `<li>${b.detail}</li>`).join('')}</ul>
-<p>Agent Foundry’s PostgreSQL data is unchanged. No generated code runs through this endpoint.</p>
+<p>Control Plane’s PostgreSQL data is unchanged. No generated code runs through this endpoint.</p>
 <p>See <code>docs/cloudflare-os-replit.md</code> in the project for the evidence and requirements.</p></body></html>`;
 
 export function createStatusServer() {

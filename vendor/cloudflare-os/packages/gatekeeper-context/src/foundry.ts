@@ -12,11 +12,11 @@ export function createFoundryCapability(
   env: FoundryBridgeEnv, workspaceId: string, userId: string,
 ) {
   if (!env.FOUNDRY_API_URL || (!env.FOUNDRY_BRIDGE_KEY && !env.FOUNDRY_API_TOKEN)) {
-    throw new Error("Agent Foundry knowledge bridge is not configured.");
+    throw new Error("Control Plane knowledge bridge is not configured.");
   }
   const endpoint = new URL(env.FOUNDRY_API_URL);
   if (endpoint.protocol !== "https:" && endpoint.hostname !== "localhost" && endpoint.hostname !== "127.0.0.1") {
-    throw new Error("Agent Foundry bridge requires HTTPS.");
+    throw new Error("Control Plane bridge requires HTTPS.");
   }
   const url = endpoint.toString();
   const key = env.FOUNDRY_BRIDGE_KEY;
@@ -45,11 +45,11 @@ export function createFoundryCapability(
         method: "POST", headers,
         body, redirect: "error", signal: AbortSignal.timeout(90_000),
       });
-      if (!response.ok) throw new Error(`Agent Foundry denied or failed this scoped request (HTTP ${response.status}).`);
+      if (!response.ok) throw new Error(`Control Plane denied or failed this scoped request (HTTP ${response.status}).`);
       const result = await response.json() as {
         result?: { structuredContent?: Record<string, unknown> }; error?: unknown;
       };
-      if (result.error || !result.result?.structuredContent) throw new Error("Invalid Foundry MCP response.");
+      if (result.error || !result.result?.structuredContent) throw new Error("Invalid Control Plane MCP response.");
       return result.result.structuredContent;
     },
   };

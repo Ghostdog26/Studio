@@ -137,7 +137,7 @@ represents the cited source**, a source-code audit, a build or human approval.
    the deployed release/configuration.
 2. **Catalogue MCP server records** describe other servers. Tool/resource/prompt records,
    health labels or deployment URLs can be stale; catalogue presence never makes a server
-   connected, healthy, callable, or approved in Foundry.
+   connected, healthy, callable, or approved in Control Plane.
 3. **Live authenticated discovery** uses a separate explicitly approved client, caller,
    endpoint, transport/protocol and release as described below. Do not invoke
    discovered tools automatically.

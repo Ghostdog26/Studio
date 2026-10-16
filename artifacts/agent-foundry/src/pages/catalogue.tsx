@@ -31,7 +31,7 @@ function Row({ entry, active, onSelect }: { entry: McpCatalogueEntry; active: bo
       <div className="flex items-center gap-2">
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? 'bg-primary' : 'bg-border'}`} />
         <span className="truncate text-[13px] font-semibold">{entry.name}</span>
-        {entry.officialListed && <span className="shrink-0 rounded border border-primary/25 px-1 text-[9px] font-semibold text-primary" title="Marked official in the upstream list. Not verified by Agent Foundry.">Listed official</span>}
+        {entry.officialListed && <span className="shrink-0 rounded border border-primary/25 px-1 text-[9px] font-semibold text-primary" title="Marked official in the upstream list. Not verified by Control Plane.">Listed official</span>}
         {entry.knowledgeId != null && <BookOpen size={11} className="ml-auto shrink-0 text-muted-foreground" aria-label="Has knowledge document" />}
       </div>
       <p className="mt-1 line-clamp-2 pl-3.5 text-[11px] leading-relaxed text-muted-foreground">{entry.description || 'No description in source list.'}</p>

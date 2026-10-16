@@ -17,7 +17,7 @@ export default function OverviewPage() {
   const activities = data.recentActivity ?? [];
   return (
     <>
-      <PageHeading eyebrow="Foundry / control plane" title="Build from shared context." description="A single operating view across your team's knowledge, standardized agents, portable components, and runtime adapters." action={<div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"><span className={`h-2 w-2 rounded-full ${health.data?.status ? 'bg-primary' : 'bg-amber-500'}`} /><span className="font-semibold">{health.data?.status ? 'API operational' : 'Checking API'}</span></div>} />
+      <PageHeading eyebrow="Control Plane" title="Build from shared context." description="Bring enterprise knowledge, governed capability definitions, and standards together for reviewable AI delivery. Runtime adapters remain separate from live execution." action={<div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"><span className={`h-2 w-2 rounded-full ${health.data?.status ? 'bg-primary' : 'bg-amber-500'}`} /><span className="font-semibold">{health.data?.status ? 'API operational' : 'Checking API'}</span></div>} />
       <div className="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric label="Knowledge base" value={data.knowledgeCount} caption="shared source documents" icon={BrainCircuit} accent />
         <Metric label="Agent factory" value={data.agentCount} caption="standardized definitions" icon={Sparkles} />

@@ -330,12 +330,12 @@ async function runTool(args: Record<string, unknown>, env: RuntimeEnv) {
   }
 
   if (!env.FOUNDRY_API_BASE_URL || !env.FOUNDRY_API_TOKEN) {
-    throw new Error("A Foundry API URL and workspace/user-scoped capability token are required.");
+    throw new Error("A Control Plane API URL and workspace/user-scoped capability token are required.");
   }
   const baseUrl = env.FOUNDRY_API_BASE_URL.replace(/\\/$/, "");
   const apiUrl = new URL(baseUrl);
   if (apiUrl.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(apiUrl.hostname)) {
-    throw new Error("Foundry capability transport requires HTTPS off loopback.");
+    throw new Error("Control Plane capability transport requires HTTPS off loopback.");
   }
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -351,12 +351,12 @@ async function runTool(args: Record<string, unknown>, env: RuntimeEnv) {
     redirect: "error",
   });
   if (!response.ok) {
-    throw new Error(\`Agent Foundry knowledge query failed with HTTP \${response.status}.\`);
+    throw new Error(\`Control Plane knowledge query failed with HTTP \${response.status}.\`);
   }
   const rpc = await response.json() as {
     error?: unknown; result?: { structuredContent?: Record<string, unknown> };
   };
-  if (rpc.error || !rpc.result?.structuredContent) throw new Error("Invalid Foundry MCP response.");
+  if (rpc.error || !rpc.result?.structuredContent) throw new Error("Invalid Control Plane MCP response.");
   const result = rpc.result.structuredContent;
   return {
     content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -385,7 +385,7 @@ export const definition = {
         {
           path: "mcp-app.html",
           content: `<!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(component.name)}</title></head><body><main><p class="eyebrow">AGENT FOUNDRY · MCP APP</p><h1>${escapeHtml(component.name)}</h1><p class="description">${escapeHtml(component.description || "Interactive MCP app generated from a JSON Schema definition.")}</p><form id="tool-form">${Object.entries(
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(component.name)}</title></head><body><main><p class="eyebrow">CONTROL PLANE · MCP APP</p><h1>${escapeHtml(component.name)}</h1><p class="description">${escapeHtml(component.description || "Interactive MCP app generated from a JSON Schema definition.")}</p><form id="tool-form">${Object.entries(
             component.jsonSchema.properties &&
               typeof component.jsonSchema.properties === "object"
               ? (component.jsonSchema.properties as Record<string, unknown>)
@@ -746,7 +746,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 \`\`\`
 
-The MCP endpoint is \`http://localhost:5173/mcp\`. It calls Agent Foundry's knowledge-query API when the input schema includes a \`query\` field. Set \`FOUNDRY_API_BASE_URL\` to a reachable Agent Foundry API.
+The MCP endpoint is \`http://localhost:5173/mcp\`. It calls Control Plane's knowledge-query API when the input schema includes a \`query\` field. Set \`FOUNDRY_API_BASE_URL\` to a reachable Control Plane API. The existing \`FOUNDRY_*\` configuration names are retained for integration compatibility.
 
 ## Deploy
 
@@ -798,11 +798,11 @@ OpenShell prints the service address. Connect an MCP client to its \`/mcp\` endp
 
 The container binds to \`0.0.0.0\` so the sandbox service can be reached. Configure \`MCP_ALLOWED_HOSTS\` with the sandbox's service hostname to enable host validation. This is not authentication.
 
-Set \`FOUNDRY_API_BASE_URL\` and \`FOUNDRY_API_TOKEN\` in the sandbox environment using your gateway's approved secret and policy workflow. The default sandbox policy may block external API calls; allow only the Agent Foundry API host that the tool needs.
+Set \`FOUNDRY_API_BASE_URL\` and \`FOUNDRY_API_TOKEN\` in the sandbox environment using your gateway's approved secret and policy workflow. The default sandbox policy may block external API calls; allow only the Control Plane API host that the tool needs. The existing \`FOUNDRY_*\` configuration names are retained for integration compatibility.
 
 ## Tool behavior
 
-The generated \`${tool}\` tool calls Agent Foundry's knowledge query API when the saved schema includes a string \`query\` property. Other schemas return the validated arguments as structured content, ready for you to replace with a domain-specific handler in \`src/server.ts\`.
+The generated \`${tool}\` tool calls Control Plane's knowledge query API when the saved schema includes a string \`query\` property. Other schemas return the validated arguments as structured content, ready for you to replace with a domain-specific handler in \`src/server.ts\`.
 
 Knowledge calls use the scoped enterprise MCP endpoint, not the legacy wiki API. A revocable workspace/user capability is required in FOUNDRY_API_TOKEN; provision it with the operator enterprise-standards grant command. Configure a separate cryptographically random MCP_ACCESS_TOKEN (at least 32 characters) for clients authorized for this server's granted knowledge. Every client must send Authorization: Bearer <MCP_ACCESS_TOKEN>. Missing access configuration returns 503; anonymous/invalid callers return 401 before the MCP handler runs. Reusing the backend knowledge capability as the inbound credential is rejected. Use HTTPS outside loopback and rotate both credentials independently. Replace the explicit shared-client policy with verified per-user identity before broad enterprise SSO rollout.
 `;

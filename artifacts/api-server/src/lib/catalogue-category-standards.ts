@@ -12,6 +12,7 @@ export interface CategoryStandard {
 }
 
 export const CATEGORY_STANDARDS_VERSION = "1";
+// Persisted importer identity: keep the legacy prefix to update existing records on repeat imports.
 export const CATEGORY_STANDARDS_SOURCE_PREFIX = "Agent Foundry priority MCP standards | ";
 const check = (id: string, requirement: string, evidence: string, acceptanceTest: string): CategoryCheck =>
   ({ id, requirement, evidence, acceptanceTest });

@@ -6,3 +6,4 @@
 - [OpenMetadata source policy](openmetadata-source-policy.md) — intended enterprise catalogue source; reference understanding does not authorize live instance access.
 - [Generated validation constants](codegen-validation-quirk.md) — generated validators can use numeric constants before declaration; generation alone is not verification.
 - [Discovery revocation](discovery-revocation.md) — restoring identical permissions must not restore old discovery evidence; keep monotonic invalidation.
+- [Product naming intent](product-positioning.md) — Control Plane reflects decisions across knowledge, approved capabilities, standards, and AI delivery, not only agent creation.

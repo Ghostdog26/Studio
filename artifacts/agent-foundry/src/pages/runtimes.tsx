@@ -6,7 +6,7 @@ export default function RuntimesPage() {
   const runtimes = useListRuntimes();
   return (
     <>
-      <PageHeading eyebrow="Execution adapters" title="Portability, made explicit." description="Agent Foundry standardizes definitions independently from where they run. Adapter readiness is not the same as a live provider connection." />
+      <PageHeading eyebrow="Execution adapters" title="Portability, made explicit." description="Control Plane standardizes definitions independently from where they run. Adapter readiness is not the same as a live provider connection." />
       <Panel className="mb-6 p-5 md:p-6" data-testid="cloudflare-os-workspace">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
@@ -17,7 +17,7 @@ export default function RuntimesPage() {
           <a href="/cloudflare-os/" target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground" data-testid="open-cloudflare-os">View hosting status <ArrowRight size={15} /></a>
         </div>
         <div className="mt-4 rounded-lg border border-amber-700/15 bg-amber-100/50 p-3 text-xs leading-relaxed text-amber-900">
-          Not production-ready. The default endpoint does not run generated code or accept accounts. The unsafe development preview requires an explicit command and is not enterprise hosting. Agent Foundry’s PostgreSQL data remains unchanged.
+          Not production-ready. The default endpoint does not run generated code or accept accounts. The unsafe development preview requires an explicit command and is not enterprise hosting. Control Plane’s PostgreSQL data remains unchanged.
         </div>
         <p className="mt-4 text-xs leading-relaxed text-muted-foreground"><strong className="text-foreground">Enterprise factory workflow:</strong> shared knowledge and standards → AI builds → validation → human approval → deployment of a fixed, versioned artifact. Runtime code is not regenerated per request; LLM outputs can still vary.</p>
       </Panel>

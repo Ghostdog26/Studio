@@ -1,6 +1,6 @@
 # Enterprise factory: intended operating model
 
-Agent Foundry is a system for producing standardized MCP servers, MCP Apps, and agents for enterprise developers and users—not a requirement for a development team to hand-build every instance.
+Control Plane brings enterprise knowledge, governed capability definitions, and standards together for reviewable AI delivery. It produces standardized MCP servers, MCP Apps, and agents for enterprise developers and users—not a requirement for a development team to hand-build every instance. Generation does not imply approval or a connected runtime.
 
 OpenMetadata's portable reference profile uses this same scoped standards/context boundary.
 See [OpenMetadata enterprise context](openmetadata-context.md) for standards 1.1.0 selection,
@@ -19,11 +19,11 @@ Deterministic deployment means fixed source, configuration, and locked dependenc
 
 ## Current integration boundary
 
-- Agent Foundry retains its PostgreSQL-backed definitions, knowledge queries, caching, and MCP package builder.
+- Control Plane retains its PostgreSQL-backed definitions, knowledge queries, caching, and MCP package builder.
 - The actual Apache-2.0 Cloudflare OS source is vendored separately, with its provenance recorded in `scripts/cloudflare-os/source.json`.
 - Cloudflare OS contributes its upstream agent workspace, gadgets, blueprints, and Gatekeeper capability model.
 - Its default Replit endpoint is a non-executing hosting status page. The upstream Wrangler/workerd development stack requires explicit trusted-preview opt-in; production hosting remains blocked. See `docs/cloudflare-os-replit.md`.
-- Cloudflare OS creation can now consume Foundry's scoped wiki answers and pinned generation standards through the enterprise Gatekeeper/MCP bridge described below. This does not connect a Cloudflare execution/deployment adapter.
+- Cloudflare OS creation can now consume Control Plane's scoped wiki answers and pinned generation standards through the enterprise Gatekeeper/MCP bridge described below. This does not connect a Cloudflare execution/deployment adapter.
 - Approval enforcement, immutable release storage, deployment orchestration, and enterprise identity integration are not implemented by this import.
 - NVIDIA OpenShell is not installed or running.
 
@@ -124,13 +124,13 @@ The generated Cloudflare and OpenShell network entrypoints also require an indep
 `MCP_ACCESS_TOKEN` (a random secret of at least 32 characters). Anonymous/invalid clients are
 denied before the MCP handler runs; absent access configuration fails closed with 503.
 Only clients authorized for the server's granted knowledge may receive this inbound credential.
-It cannot equal the backend Foundry capability. This explicit shared-client policy is not
+It cannot equal the backend Control Plane capability. This explicit shared-client policy is not
 per-user SSO; replace it with verified enterprise caller identity where that is required.
 
 Existing lexical retrieval, reranking, query history, and ten-minute TTL are reused. Enterprise
 cache hashes additionally include workspace ID, user ID, allowed document IDs, and standards
 digest. Knowledge edits still invalidate the cache. Grant changes cannot reuse a broader cache.
-The legacy shared Foundry wiki API continues to serve public/demo documents, but an enforced
+The legacy shared Control Plane wiki API continues to serve public/demo documents, but an enforced
 visibility filter excludes restricted or ever-granted enterprise documents from public listing,
 retrieval, overview, editing, and deletion. Public cache hits recheck source visibility, including
 entries computed before a grant. The operator grant command also invalidates previous caches.

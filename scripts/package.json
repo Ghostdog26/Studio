@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:branding": "tsx --test ./src/control-plane-branding.test.ts",
     "discovery:setup": "tsx ./src/discovery-coordination-setup.ts",
     "test:mcp-discovery": "tsx --test ../artifacts/api-server/src/lib/mcp-discovery.test.ts ../artifacts/api-server/src/lib/mcp-discovery-oauth.test.ts ../artifacts/api-server/src/lib/mcp-discovery.integration.test.ts",
     "enterprise-standards": "tsx ./src/enterprise-standards.ts",

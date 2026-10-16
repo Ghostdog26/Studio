@@ -1,4 +1,5 @@
 export const MCP_DIRECTORY_URL = "https://github.com/punkpeye/awesome-mcp-servers";
+// Persisted importer identity, not product display text.
 export const MCP_STANDARDS_SOURCE = "Agent Foundry MCP architecture guidance";
 export const MCP_STANDARDS_TITLE = "MCP architecture and enterprise builder standards";
 

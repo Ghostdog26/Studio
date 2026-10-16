@@ -1,6 +1,6 @@
 # Official MCP sources and language-aware generation
 
-`https://github.com/modelcontextprotocol` is the official organization, not a single repository. Agent Foundry imports:
+`https://github.com/modelcontextprotocol` is the official organization, not a single repository. Control Plane imports:
 
 - The `modelcontextprotocol/modelcontextprotocol` specification repository's README, license, language-neutral JSON Schema, and selected normative architecture, transport, authorization, tools, resources, and prompts documents.
 - README/license snapshots for the ten official SDK repositories, pinned to exact Git commits. JavaScript and TypeScript share the TypeScript SDK.

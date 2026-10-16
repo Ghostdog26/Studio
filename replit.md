@@ -1,6 +1,10 @@
-# Agent Foundry
+# Control Plane
 
-Agent Foundry is a shared enterprise control plane for grounded knowledge retrieval, standardized agent definitions, and MCP server/app contracts that can target Cloudflare or NVIDIA OpenShell.
+Control Plane brings enterprise knowledge, governed capability definitions, and standards together for reviewable AI delivery. It supports grounded knowledge retrieval, standardized agent definitions, and MCP server/app contracts that can target Cloudflare or NVIDIA OpenShell. Package generation is not deployment or approval; live runtime execution remains disconnected.
+
+## Branding and compatibility
+
+Use **Control Plane** for product display text. The existing `artifacts/agent-foundry` directory, workspace package, preview route, saved builder journey key/version, `FOUNDRY_*` settings, MCP tool names, package/manifest identifiers, and managed knowledge source prefixes are compatibility contracts, not branding. Keep them stable; present managed sources with separate display labels rather than rewriting stored data or user-authored content.
 
 ## Run & Operate
 
@@ -60,7 +64,7 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 - The managed service now serves a **non-executing blocked-hosting status page**. `/cloudflare-os/livez` is process liveness; `/cloudflare-os/healthz` returns 503 because no supported OS runtime is ready.
 - `pnpm --filter @workspace/scripts run cloudflare-os:preview` explicitly opts into the unsafe trusted-development Wrangler/workerd runner; it is not production hosting and must not receive production data/secrets.
 - `pnpm --filter @workspace/scripts run cloudflare-os:production-check` deliberately fails with concrete hosting blockers; `cloudflare-os:test` verifies the safety gate.
-- Its accounts and local Durable Object storage are separate from Agent Foundry's PostgreSQL data. It does not make the Cloudflare execution adapter connected.
+- Its accounts and local Durable Object storage are separate from Control Plane's PostgreSQL data. It does not make the Cloudflare execution adapter connected.
 - Enterprise creation uses `/foundry <version> <template> <request>` in Cloudflare OS chat after an operator publishes standards and grants specific wiki documents to the workspace/user pair. The hosting safety gate remains in force; only use test knowledge with an explicitly enabled trusted preview. See `docs/enterprise-factory.md`.
 - See `docs/cloudflare-os-replit.md` for hosting limitations and `docs/enterprise-factory.md` for the intended knowledge → generation → human approval → fixed-release workflow.
 

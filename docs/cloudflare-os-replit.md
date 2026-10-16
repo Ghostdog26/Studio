@@ -5,7 +5,7 @@
 **A persistent enterprise Cloudflare OS service is blocked on the currently
 documented Replit capabilities.** This is not a production deployment. No
 published app, database migration, external host, or privileged container has
-been created. Agent Foundry's PostgreSQL remains in place.
+been created. Control Plane's PostgreSQL remains in place.
 
 The managed service now serves a **non-executing status endpoint** by default,
 instead of automatically launching Wrangler and accepting accounts or gadgets.
@@ -22,7 +22,7 @@ workflow. Existing `.wrangler` data is not deleted.
   configuration booleans.
 
 No Cloudflare OS production service stanza has been added to the artifact.
-Adding a run command would not fix persistence or isolation. Agent Foundry's
+Adding a run command would not fix persistence or isolation. Control Plane's
 existing production settings are unchanged.
 
 ## Evidence checked on 2026-10-15
@@ -58,7 +58,7 @@ Cloudflare storage. Back up the whole state set, not only the named backend DOs.
 | DO SQLite and facets | Local `.wrangler` state; no deployment durability guarantee | Durable POSIX storage with SQLite locking/fsync semantics, a single writer per namespace, stable object IDs, restart/redeploy survival, and version-compatible recovery |
 | KV metadata/avatars | Local emulation | Compatible durable implementation and consistent recovery with related DO/R2 references |
 | R2 blueprint content | Local emulation | Durable object service plus a tested R2-compatible adapter; Replit App Storage is **not** a drop-in Workers R2 binding |
-| Agent Foundry | Existing PostgreSQL | Keep its separate data model and backup policy; do not replace it with local SQLite |
+| Control Plane | Existing PostgreSQL | Keep its separate data model and backup policy; do not replace it with local SQLite |
 
 Replit Database/App Storage are durable options for application data, but wiring
 their URLs into workerd does not implement its DO/KV/R2 APIs, transactions,
@@ -132,7 +132,7 @@ The upstream gadget loader uses `globalOutbound: null` and capability bindings;
 the frontend uses sandboxed iframes/CSP. Preserve those restrictions, but they
 do not replace the additional host isolation workerd requires.
 
-Do not run generated server code in Agent Foundry's Node process, use `eval`,
+Do not run generated server code in Control Plane's Node process, use `eval`,
 give the runtime ambient database/provider secrets, or enable unrestricted
 network/filesystem access. A supported execution service must be separated
 from the control plane and its credentials, with verified tenant boundaries,
@@ -151,7 +151,7 @@ This workspace includes the **actual upstream Cloudflare OS project**, not a moc
 - Install and build the required frontend/storage packages: `pnpm --filter @workspace/scripts cloudflare-os:prepare`
 - Default: non-executing status service at `/cloudflare-os/`
 - Unsafe development only: `pnpm --filter @workspace/scripts run cloudflare-os:preview`
-- Service: the Cloudflare OS managed service on the existing Agent Foundry artifact.
+- Service: the Cloudflare OS managed service on the existing Control Plane artifact.
 
 The upstream project keeps its own dependency workspace and lockfile. It is intentionally not merged into the outer pnpm catalog. The launcher uses the environment's pnpm with version management disabled; the upstream frozen lockfile and minimum-release-age policy remain intact.
 
@@ -161,7 +161,7 @@ port conflict. Never enable it on a public enterprise endpoint or with
 production secrets/data. It refuses `NODE_ENV=production`; this guard is not a
 security boundary against someone who controls the command/environment.
 It retains upstream's development auth and isolation limitations and inherits
-the invoking environment. Do not run it with Agent Foundry's database/provider
+the invoking environment. Do not run it with Control Plane's database/provider
 credentials. It is an experimental developer tool, not a supported service.
 
 In that explicit mode only, the hosting adapter strips the preview prefix on requests to upstream and forwards WebSocket upgrades. The frontend uses Vite's base URL and TanStack Router's basepath. Small changes to upstream files add preview-path support, public Gatekeeper URLs, an opt-out of the build cache, and removal of the development runner's implicit `admin` username grant on Replit. Preserve the upstream license and notices when updating the source.
@@ -172,7 +172,7 @@ The upstream Vite+ build cache triggers native executable `EBUSY` errors in this
 
 The opt-in preview is a **development preview hosted on Replit**, using the upstream multi-worker Wrangler runner. Upstream explicitly says its local runner is not for production; production self-hosting documentation/tooling is still in progress.
 
-There is no Cloudflare deployment/account connection, no OpenShell gateway, and no integration yet between Cloudflare OS's accounts/storage and Agent Foundry's PostgreSQL data.
+There is no Cloudflare deployment/account connection, no OpenShell gateway, and no integration yet between Cloudflare OS's accounts/storage and Control Plane's PostgreSQL data.
 
 Runtime data is stored in the upstream `.wrangler` directory, excluded from Git and publishing. Do not treat that filesystem state as durable production storage. Production requires an explicitly designed persistence, backup, authentication, isolation, and workerd supervision strategy.
 
