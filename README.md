@@ -10,6 +10,8 @@ The operating model is:
 
 The repository implements the knowledge workspace, catalogue, guided builder, saved definitions, source-package generation, and scoped enterprise context interfaces. **It does not yet implement the complete approval, isolated verification, or deployment pipeline.** Cloudflare and NVIDIA OpenShell are runtime targets, not connected execution services in the current application.
 
+**Proposed MOSSI direction:** The [MOSSI capability-builder brief](docs/mossi-capability-builder-brief.md) describes a narrower integration: reuse internal capabilities first, review the contract before code generation, and contribute through the existing monorepo review and delivery pipeline. It explains what to keep, adapt, and retire. That proposal has not changed the implementation documented below.
+
 ## Contents
 
 - [What this is](#what-this-is)
@@ -373,6 +375,7 @@ The useful boundary today is a knowledge-backed, standards-aware creation worksp
 
 ## Further documentation
 
+- [Proposed MOSSI capability-builder product and architecture brief](docs/mossi-capability-builder-brief.md)
 - [Enterprise factory and scoped creation](docs/enterprise-factory.md)
 - [Official MCP sources and language-aware generation](docs/official-mcp-builder.md)
 - [MCP catalogue, provenance, and import behavior](docs/mcp-catalogue.md)

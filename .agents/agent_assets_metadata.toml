@@ -15,6 +15,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_intro.mp3"
 type = "audio"
 title = "intro"
 description = "Text-to-speech audio: Most teams hand-code every integration separately. Control Plane gives them one shared foundation instead."
+logical_id = "8a18ca43-9c49-4c64-ab4f-e4b8a0b44b88"
 
 [[outputs]]
 id = "RNwIcwqMuzEfU5YXl7b8j"
@@ -22,6 +23,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_overview.mp3"
 type = "audio"
 title = "overview"
 description = "Text-to-speech audio: The overview puts shared knowledge, agent definitions and MCP components in one place, and says plainly that runtimes aren't connected yet."
+logical_id = "f6edde79-d9dd-483d-8bbb-12c99e347ae9"
 
 [[outputs]]
 id = "kM2sUFTAYRERFXrifrCyF"
@@ -29,6 +31,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_knowledge.mp3"
 type = "audio"
 title = "knowledge"
 description = "Text-to-speech audio: Knowledge comes with receipts. Answers cite their sources, so teams build on context they can actually check."
+logical_id = "f7ba2b49-03a3-417e-b162-4612c0787bb0"
 
 [[outputs]]
 id = "xCE9E72VbM-1A-KrbYC76"
@@ -36,6 +39,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_catalogue.mp3"
 type = "audio"
 title = "catalogue"
 description = "Text-to-speech audio: The catalogue starts from what already exists: over four thousand community references, treated as unreviewed until someone checks them."
+logical_id = "49971362-3e51-495d-a42d-ae34f5c337ca"
 
 [[outputs]]
 id = "pd4xpvC1tfhk74hSLE9St"
@@ -43,6 +47,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_builder.mp3"
 type = "audio"
 title = "builder"
 description = "Text-to-speech audio: The guided builder turns a plain-language goal into a reviewable package. Matching is deterministic. AI only drafts the specification."
+logical_id = "45ecc74c-4570-40e7-a563-00a581db583a"
 
 [[outputs]]
 id = "eMzQUQw4HSTKuLnFD88uE"
@@ -50,6 +55,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_mcp.mp3"
 type = "audio"
 title = "mcp"
 description = "Text-to-speech audio: Servers are grounded in the official MCP specification and SDKs, across eleven languages, with provenance attached."
+logical_id = "9e2fd251-26e2-433d-aed8-dcbbc4695cd2"
 
 [[outputs]]
 id = "Wztp7H1QAixWeTpM6_OZC"
@@ -57,6 +63,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_agents.mp3"
 type = "audio"
 title = "agents"
 description = "Text-to-speech audio: Agents become saved, portable definitions. Instructions, input schema and model, written once, for any runtime."
+logical_id = "d6deeec3-67b3-4a11-ad19-2061becae62a"
 
 [[outputs]]
 id = "Yb0GBV_pHqe2rY8paCBIx"
@@ -64,6 +71,7 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/vo_outro.mp3"
 type = "audio"
 title = "outro"
 description = "Text-to-speech audio: And saving is not approval. People review, and verification stays separate. Control Plane. Build from shared context."
+logical_id = "42d88b1a-c72e-41cb-9f58-0737ea3e1fbe"
 
 [[outputs]]
 id = "Aw6BD6CwsXT2AJ45uAzE-"
@@ -71,3 +79,18 @@ uri = "file://artifacts/control-plane-ui-tour/public/audio/bg_music.mp3"
 type = "audio"
 title = "bed"
 description = "Generated music: Ambient atmospheric instrumental under a calm product walkthrough voiceover. Soft warm synth pads, gentle pulsing plucks, light muted percussion, 90 BPM, thoughtful and confident, st…"
+logical_id = "6e409170-8d67-498e-ac02-a23546d35d69"
+
+[[outputs]]
+id = "8bpm9_EdSZ8cG__KCkK3T"
+uri = "file://docs/mossi-capability-builder-brief.md"
+type = "text"
+title = "MOSSI capability-builder product and architecture brief"
+description = "Proposed scope, target architecture, keep/adapt/retire decisions, contract-first contribution workflow, integration prerequisites, and pilot criteria. Not an implemented migration."
+logical_id = "a8fbeeec-9819-4fce-ba82-5ce22a290f76"
+content_hash = "sha256:0f97945cab7d329744350e75a3186d67bbc65554c19b2e26a7f8e403df82ec13"
+size = 22479
+mtime_ms = 1792519451543
+storage_uri = "gcs://replit-rams-assets-janeway/rams/assets/repl:08aca852-e31b-4870-93bd-9f8dcc70b7c9/a8fbeeec-9819-4fce-ba82-5ce22a290f76/5a0cc8e5-d4fd-4197-9607-c09f2f59e21a"
+storage_version_token = "1792519490406251"
+content_type = "text/markdown"
