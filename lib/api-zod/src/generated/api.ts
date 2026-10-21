@@ -48,6 +48,8 @@ export const GetStudioWorkflowResponse = zod.object({
 }),
   "delivery": zod.object({
   "status": zod.enum(['unverified']),
+  "repositoryUrl": zod.string().url().describe('Display-only repository destination. A placeholder is not a verified integration.'),
+  "repositoryPlaceholder": zod.boolean(),
   "pipeline": zod.string(),
   "capabilityPath": zod.string(),
   "viewPath": zod.string(),

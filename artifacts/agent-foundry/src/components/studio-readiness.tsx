@@ -37,6 +37,7 @@ export function PolicyFacts({ workflow }: { workflow: StudioWorkflow }) {
   const lp = workflow.languagePolicy;
   const d = workflow.delivery;
   const rows: [string, string][] = [
+    [d.repositoryPlaceholder ? 'Repository (placeholder)' : 'Repository', d.repositoryUrl],
     ['Allowed languages', lp.allowedLanguages.length ? lp.allowedLanguages.join(', ') : 'None verified'],
     ['Suggested (not policy)', lp.suggestedLanguages.join(', ') || 'None'],
     ['Pipeline (proposed)', d.pipeline],
@@ -47,7 +48,7 @@ export function PolicyFacts({ workflow }: { workflow: StudioWorkflow }) {
   return (
     <dl className="grid gap-x-4 gap-y-2.5 text-[11px] sm:grid-cols-[150px_minmax(0,1fr)]" data-testid="policy-facts">
       {rows.map(([k, v]) => <div key={k} className="contents"><dt className="foundry-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground sm:pt-0.5">{k}</dt><dd className="foundry-mono break-words">{v}</dd></div>)}
-      <div className="contents"><dt className="foundry-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground">Verification</dt><dd className="text-amber-800">Language policy {lp.status}; delivery {d.status} against the MOSSI repository.</dd></div>
+      <div className="contents"><dt className="foundry-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground">Verification</dt><dd className="text-amber-800">{d.repositoryPlaceholder && 'Repository URL is a placeholder only; no connection or repository writes are enabled. '}Language policy {lp.status}; delivery {d.status} against the MOSSI repository.</dd></div>
     </dl>
   );
 }

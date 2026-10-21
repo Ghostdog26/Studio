@@ -9,6 +9,9 @@ import type { StudioWorkflowDeliveryStatus } from './studioWorkflowDeliveryStatu
 
 export type StudioWorkflowDelivery = {
   status: StudioWorkflowDeliveryStatus;
+  /** Display-only repository destination. A placeholder is not a verified integration. */
+  repositoryUrl: string;
+  repositoryPlaceholder: boolean;
   pipeline: string;
   capabilityPath: string;
   viewPath: string;

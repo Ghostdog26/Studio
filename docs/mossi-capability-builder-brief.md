@@ -4,6 +4,8 @@
 
 The capability is named **MOSSI Studio**. The first refactor introduces server-owned readiness, replaces the primary public-first builder path, and blocks standalone prototype generation/download endpoints. Existing records and compatibility identifiers remain intact. Most of the architecture below describes subsequent integration work, not completed functionality.
 
+The user requested a placeholder GitLab destination for now: `https://gitlab.example.com/mossi/monorepo`. Studio marks it as a placeholder, does not contact it, and does not treat it as verified access, policy, or authorization to create merge requests.
+
 This brief responds to the supplied MOSSI feedback. It defines a narrower role for Control Plane, identifies reusable work, and describes how it should integrate with existing enterprise services.
 
 The MOSSI repository, Enterprise Shell, internal registries, identity services, and delivery configuration have **not** been inspected. References to MOSSI's current policies and infrastructure below come from the feedback and require verification. Suggested paths and interfaces are proposals, not claims about existing APIs.

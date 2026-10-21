@@ -16,6 +16,9 @@ test("Studio has no implicit enterprise policy or connected release path", () =>
   assert.deepEqual(workflow.languagePolicy.suggestedLanguages, ["TypeScript", "Python"]);
   assert.ok(Object.values(workflow.actions).every((enabled) => enabled === false));
   assert.equal(workflow.delivery.status, "unverified");
+  assert.equal(workflow.delivery.repositoryUrl, "https://gitlab.example.com/mossi/monorepo");
+  assert.equal(workflow.delivery.repositoryPlaceholder, true);
+  assert.equal(workflow.actions.canOpenMergeRequest, false);
   // A caller cannot turn a fresh server-owned response into persistent policy.
   workflow.actions.canOpenMergeRequest = true;
   assert.equal(getStudioWorkflow().actions.canOpenMergeRequest, false);
@@ -50,6 +53,8 @@ test("Studio routes block unavailable discovery and legacy generation before dow
     const body = (await response.json()) as StudioBlockedResponse;
     assert.equal(body.code, "MOSSI_INTEGRATION_REQUIRED");
     assert.equal(body.workflow.actions.canSearchInternal, false);
+    assert.equal(body.workflow.delivery.repositoryPlaceholder, true);
+    assert.equal(body.workflow.actions.canOpenMergeRequest, false);
     assert.ok(!Object.hasOwn(body, "matches"));
     assert.ok(!Object.hasOwn(body, "approved"));
     assert.ok(!JSON.stringify(body).includes("Find an existing developer capability"));

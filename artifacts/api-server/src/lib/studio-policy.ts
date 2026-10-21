@@ -23,6 +23,8 @@ export function getStudioWorkflow() {
     },
     delivery: {
       status: "unverified" as const,
+      repositoryUrl: "https://gitlab.example.com/mossi/monorepo",
+      repositoryPlaceholder: true,
       pipeline: "GitLab CI → OCI → Flux → Kubernetes",
       capabilityPath: "apps/<capability>/",
       viewPath: "views/*.yaml",

@@ -680,9 +680,11 @@ components:
             suggestedLanguages: { type: array, items: { type: string } }
         delivery:
           type: object
-          required: [status, pipeline, capabilityPath, viewPath, contractReview]
+          required: [status, repositoryUrl, repositoryPlaceholder, pipeline, capabilityPath, viewPath, contractReview]
           properties:
             status: { type: string, enum: [unverified] }
+            repositoryUrl: { type: string, format: uri, description: "Display-only repository destination. A placeholder is not a verified integration." }
+            repositoryPlaceholder: { type: boolean }
             pipeline: { type: string }
             capabilityPath: { type: string }
             viewPath: { type: string }

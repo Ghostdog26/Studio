@@ -20,6 +20,7 @@ This is the **integration-foundation phase**, not a connected MOSSI installation
 - The public MCP catalogue is an external reference library, not the internal capability registry.
 - TypeScript/Python are suggested candidates, **not a verified language allowlist**. Renderer YAML contracts, repository paths, review rules, and the GitLab CI → OCI → Flux → Kubernetes delivery path still require confirmation.
 - Cloudflare/OpenShell are not alternative Studio deployment choices. Existing runtime prototype code remains preserved and disconnected.
+- The repository destination is temporarily `https://gitlab.example.com/mossi/monorepo`, explicitly marked as a display-only placeholder. It is not contacted, does not establish repository policy, and does not enable MR creation.
 
 The [MOSSI capability-builder brief](docs/mossi-capability-builder-brief.md) describes the target architecture and integration prerequisites. The remaining sections below document retained prototype concepts and infrastructure as well as the target operating model; legacy generation descriptions are **not currently enabled API behavior**.
 
