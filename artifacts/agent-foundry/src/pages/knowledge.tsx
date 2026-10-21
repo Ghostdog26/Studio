@@ -65,7 +65,7 @@ export default function KnowledgePage() {
   const set = (key: keyof DocFields, value: string) => setFields((current) => ({ ...current, [key]: value }));
   return (
     <>
-      <PageHeading eyebrow="Shared second brain" title="Knowledge, with receipts." description="Keep durable team context in one place. Ask a question and inspect the exact sources behind the response." action={<AddButton onClick={openNew}>Add document</AddButton>} />
+      <PageHeading eyebrow="Reference workspace" title="Knowledge, with receipts." description="A local reference workspace preserved from the prototype. It is not the enterprise second brain and is not authoritative for MOSSI standards; answers cite only documents stored here." action={<AddButton onClick={openNew}>Add document</AddButton>} />
       {feedback && <Notice tone={feedback.error ? 'error' : 'success'}>{feedback.text}</Notice>}
       <OpenMetadataReference documents={allDocuments.data ?? []} onRead={setReading} onAsk={setQuery} />
       <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">

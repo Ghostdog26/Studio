@@ -1,6 +1,8 @@
-# Control Plane as the MOSSI capability builder
+# MOSSI Studio: product and architecture brief
 
-**Status: proposed product and architecture direction—not an implemented migration.**
+**Status: adopted refactor direction; integration foundation in progress. The target MOSSI integrations are not connected.**
+
+The capability is named **MOSSI Studio**. The first refactor introduces server-owned readiness, replaces the primary public-first builder path, and blocks standalone prototype generation/download endpoints. Existing records and compatibility identifiers remain intact. Most of the architecture below describes subsequent integration work, not completed functionality.
 
 This brief responds to the supplied MOSSI feedback. It defines a narrower role for Control Plane, identifies reusable work, and describes how it should integrate with existing enterprise services.
 
@@ -8,7 +10,7 @@ The MOSSI repository, Enterprise Shell, internal registries, identity services, 
 
 ## 1. Product definition
 
-> Control Plane is MOSSI's guided capability builder: discover what already exists, propose a standards-compliant contract, and prepare a monorepo contribution for the existing review and deployment pipeline.
+> MOSSI Studio is MOSSI's guided capability builder: discover what already exists, propose a standards-compliant contract, and prepare a monorepo contribution for the existing review and deployment pipeline.
 
 Its job is to make the standard contribution path easier for developers and non-developers. It should not become a second knowledge platform, standards authority, authorization system, or runtime control plane.
 

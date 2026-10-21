@@ -6,10 +6,12 @@ import officialMcpRouter from "./official-mcp";
 import enterpriseRouter from "./enterprise";
 import mcpDiscoveryRouter from "./mcp-discovery";
 import builderRouter from "./builder";
+import studioRouter from "./studio";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(studioRouter);
 router.use(foundryRouter);
 router.use(mcpCatalogueRouter);
 router.use(officialMcpRouter);

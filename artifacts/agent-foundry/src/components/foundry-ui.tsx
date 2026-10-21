@@ -10,6 +10,7 @@ import {
   Cpu,
   FileText,
   Library,
+  FlaskConical,
   Gauge,
   Hammer,
   Layers3,
@@ -21,12 +22,13 @@ import {
 
 export const navItems = [
   { href: '/', label: 'Overview', icon: Gauge },
-  { href: '/knowledge', label: 'Knowledge', icon: BrainCircuit },
-  { href: '/agents', label: 'Agents', icon: Sparkles },
-  { href: '/builder', label: 'Guided builder', icon: Hammer },
-  { href: '/mcp', label: 'MCP components', icon: Boxes },
-  { href: '/catalogue', label: 'Catalogue', icon: Library },
-  { href: '/runtimes', label: 'Runtimes', icon: Cpu },
+  { href: '/builder', label: 'Contribute', icon: Hammer },
+  { href: '/catalogue', label: 'External catalogue', icon: Library },
+  { href: '/knowledge', label: 'Reference knowledge', icon: BrainCircuit },
+  { href: '/agents', label: 'Agent prototypes', icon: Sparkles },
+  { href: '/mcp', label: 'MCP prototypes', icon: Boxes },
+  { href: '/runtimes', label: 'Delivery context', icon: Cpu },
+  { href: '/prototype/builder', label: 'Legacy builder', icon: FlaskConical },
 ];
 
 export function Shell({ children, path }: { children: ReactNode; path: string }) {
@@ -38,8 +40,8 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
             <Layers3 size={21} strokeWidth={2.3} />
           </div>
           <div>
-            <div className="foundry-display text-lg font-bold tracking-tight">Control Plane</div>
-            <div className="foundry-mono mt-0.5 text-[9px] uppercase tracking-[0.19em] text-sidebar-foreground/55">Knowledge &amp; AI</div>
+            <div className="foundry-display text-lg font-bold tracking-tight">MOSSI Studio</div>
+            <div className="foundry-mono mt-0.5 text-[9px] uppercase tracking-[0.19em] text-sidebar-foreground/55">Capability contributions</div>
           </div>
         </div>
         <div className="px-4">
@@ -69,15 +71,15 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
           <div className="mb-4 rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-4">
             <div className="flex items-center gap-2 text-xs font-semibold">
               <Radio size={14} className="text-sidebar-primary" />
-              Adapter layer
+              Integrations pending
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-sidebar-foreground/60">Portable by design. Cloud execution is not connected.</p>
-            <Link href="/runtimes" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-sidebar-primary">
-              Runtime status <ChevronRight size={13} />
+            <p className="mt-2 text-[11px] leading-relaxed text-sidebar-foreground/60">Registry, identity, knowledge, and GitLab are not connected. Discovery reports blocked, never empty.</p>
+            <Link href="/builder" className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-sidebar-primary">
+              Workflow readiness <ChevronRight size={13} />
             </Link>
           </div>
           <div className="flex items-center justify-between border-t border-sidebar-border px-2 pt-4 text-[10px] text-sidebar-foreground/45">
-            <span>CONTROL PLANE WORKSPACE</span>
+            <span>MOSSI STUDIO · PHASE 1</span>
             <span className="foundry-mono">v0.1</span>
           </div>
         </div>
@@ -86,13 +88,13 @@ export function Shell({ children, path }: { children: ReactNode; path: string })
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border/80 bg-background/95 px-5 backdrop-blur md:px-10">
           <div className="flex items-center gap-2 md:hidden">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-sidebar text-sidebar-primary"><Layers3 size={17} /></div>
-            <span className="foundry-display text-sm font-bold">Control Plane</span>
+            <span className="foundry-display text-sm font-bold">MOSSI Studio</span>
           </div>
           <div className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex">
-            <span>OPERATIONS</span><span className="text-border">/</span><span className="font-medium text-foreground">ENTERPRISE KNOWLEDGE &amp; AI DELIVERY</span>
+            <span>MOSSI</span><span className="text-border">/</span><span className="font-medium text-foreground">REUSE · CONTRACT · MERGE REQUEST</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="foundry-mono hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:inline">Shared workspace</span>
+            <span className="foundry-mono hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:inline">Unverified integrations</span>
             <div className="ml-2 grid h-8 w-8 place-items-center rounded-full border border-border bg-card text-muted-foreground"><CircleHelp size={15} /></div>
           </div>
         </header>

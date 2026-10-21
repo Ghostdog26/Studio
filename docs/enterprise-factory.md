@@ -1,5 +1,7 @@
 # Enterprise factory: intended operating model
 
+> **MOSSI Studio refactor:** the capability is now MOSSI Studio. Existing scoped context interfaces described below remain prototype infrastructure, not MOSSI's authoritative identity, standards, or second-brain services. The target handoff is the existing repository review/CI/delivery pipeline, not a new builder-owned release system. Standalone public planning and source downloads are blocked. See the [Studio brief](mossi-capability-builder-brief.md).
+
 Control Plane brings enterprise knowledge, governed capability definitions, and standards together for reviewable AI delivery. It produces standardized MCP servers, MCP Apps, and agents for enterprise developers and users—not a requirement for a development team to hand-build every instance. Generation does not imply approval or a connected runtime.
 
 OpenMetadata's portable reference profile uses this same scoped standards/context boundary.

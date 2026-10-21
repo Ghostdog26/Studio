@@ -24,19 +24,19 @@ function archiveFiles(buffer: Buffer): Map<string, string> {
   return files;
 }
 
-test("legacy managed sources keep importer identity while displaying Control Plane", () => {
+test("legacy managed sources keep importer identity while displaying MOSSI Studio", () => {
   assert.equal(OPENMETADATA_SOURCE_PREFIX, "Agent Foundry managed OpenMetadata reference | ");
   assert.equal(CATEGORY_STANDARDS_SOURCE_PREFIX, "Agent Foundry priority MCP standards | ");
   assert.equal(MCP_STANDARDS_SOURCE, "Agent Foundry MCP architecture guidance");
   for (const doc of openMetadataDocuments) {
     const source = doc.source;
     assert.ok(source.startsWith(OPENMETADATA_SOURCE_PREFIX));
-    assert.equal(knowledgeSourceLabel(source), source.replace(/^Agent Foundry/, "Control Plane"));
+    assert.equal(knowledgeSourceLabel(source), source.replace(/^Agent Foundry/, "MOSSI Studio"));
     assert.equal(doc.source, source);
   }
   assert.equal(knowledgeSourceLabel(`${CATEGORY_STANDARDS_SOURCE_PREFIX}Cloud Platforms`),
-    "Control Plane priority MCP standards | Cloud Platforms");
-  assert.equal(knowledgeSourceLabel(MCP_STANDARDS_SOURCE), "Control Plane MCP architecture guidance");
+    "MOSSI Studio priority MCP standards | Cloud Platforms");
+  assert.equal(knowledgeSourceLabel(MCP_STANDARDS_SOURCE), "MOSSI Studio MCP architecture guidance");
 });
 
 test("user-authored sources are not indiscriminately rebranded", () => {
@@ -87,7 +87,7 @@ for (const target of ["cloudflare", "openshell"] as const) {
 }
 
 test("saved builder journey key and version stay compatible across the rebrand", () => {
-  const builder = read("artifacts/agent-foundry/src/pages/builder.tsx");
+  const builder = read("artifacts/agent-foundry/src/pages/prototype-builder.tsx");
   assert.match(builder, /const STORAGE_KEY = 'agent-foundry\.builder\.journey';/);
   assert.match(builder, /const STORAGE_VERSION = 1;/);
   assert.match(builder, /sessionStorage\.getItem\(STORAGE_KEY\)/);
@@ -95,16 +95,16 @@ test("saved builder journey key and version stay compatible across the rebrand",
   assert.match(builder, /d\.v !== STORAGE_VERSION/);
 });
 
-test("browser/social metadata and artifact retain routing but expose Control Plane", () => {
+test("browser/social metadata and artifact retain routing but expose MOSSI Studio", () => {
   const html = read("artifacts/agent-foundry/index.html");
-  assert.match(html, /<title>Control Plane<\/title>/);
+  assert.match(html, /<title>MOSSI Studio<\/title>/);
   for (const name of ["og:title", "twitter:title"]) {
-    assert.ok(html.includes(`${name}" content="Control Plane"`));
+    assert.ok(html.includes(`${name}" content="MOSSI Studio"`));
   }
   assert.doesNotMatch(html, /Agent Foundry|Update this description/);
-  assert.match(html, /Runtime execution is not connected/);
+  assert.match(html, /[Ii]ntegrations are not (?:yet )?connected/);
   const artifact = read("artifacts/agent-foundry/.replit-artifact/artifact.toml");
-  assert.match(artifact, /title = "Control Plane"/);
+  assert.match(artifact, /title = "MOSSI Studio"/);
   assert.match(artifact, /id = "artifacts\/agent-foundry"/);
   assert.match(artifact, /previewPath = "\/"/);
 });

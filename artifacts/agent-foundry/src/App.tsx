@@ -9,6 +9,7 @@ import KnowledgePage from '@/pages/knowledge';
 import AgentsPage from '@/pages/agents';
 import McpPage from '@/pages/mcp';
 import BuilderPage from '@/pages/builder';
+import PrototypeBuilderPage from '@/pages/prototype-builder';
 import CataloguePage from '@/pages/catalogue';
 import RuntimesPage from '@/pages/runtimes';
 import NotFound from '@/pages/not-found';
@@ -33,6 +34,7 @@ function Router() {
           <Route path="/knowledge" component={KnowledgePage} />
           <Route path="/agents" component={AgentsPage} />
           <Route path="/builder" component={BuilderPage} />
+          <Route path="/prototype/builder" component={PrototypeBuilderPage} />
           <Route path="/mcp" component={McpPage} />
           <Route path="/catalogue" component={CataloguePage} />
           <Route path="/runtimes" component={RuntimesPage} />

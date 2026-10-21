@@ -3,7 +3,7 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: Control Plane enterprise knowledge and AI delivery workspace API
+  description: MOSSI Studio capability contribution workspace API
 servers:
   - url: /api
     description: Base API path
@@ -11,8 +11,37 @@ tags:
   - name: health
     description: Health operations
   - name: workspace
-    description: Control Plane workspace operations
+    description: MOSSI Studio workspace operations
 paths:
+  /studio/workflow:
+    get:
+      operationId: getStudioWorkflow
+      tags: [workspace]
+      summary: Authoritative Studio readiness and contribution boundaries
+      responses:
+        "200":
+          description: Readiness metadata, not proof of connected enterprise services
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioWorkflow" }
+  /studio/reuse:
+    post:
+      operationId: checkStudioReuse
+      tags: [workspace]
+      summary: Check whether authorized internal reuse discovery can proceed
+      description: Fails closed while MOSSI identity and internal discovery are not connected. Never falls back to public catalogue matching.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudioReuseInput" }
+      responses:
+        "400": { description: Invalid goal }
+        "503":
+          description: Discovery blocked; this is not a no-match result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioBlockedResponse" }
   /enterprise/mcp-discovery:
     get:
       operationId: listMcpDiscoveryEvidence
@@ -159,6 +188,8 @@ paths:
     post:
       operationId: discoverBuilderApproaches
       tags: [workspace]
+      deprecated: true
+      description: Retained prototype contract. MOSSI Studio blocks public-first builder discovery with 409; use the internal reuse readiness workflow.
       requestBody:
         required: true
         content:
@@ -172,10 +203,17 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BuilderDiscovery" }
         "400": { description: Invalid goal }
+        "409":
+          description: Prototype workflow is outside the MOSSI contribution path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioBlockedResponse" }
   /builder/plan:
     post:
       operationId: draftBuilderDefinition
       tags: [workspace]
+      deprecated: true
+      description: Retained prototype contract. Draft generation is blocked pending authorized internal reuse and repository-backed standards.
       requestBody:
         required: true
         content:
@@ -193,6 +231,11 @@ paths:
         "422": { description: Incompatible target or production gateway missing }
         "429": { description: Planning capacity reached }
         "502": { description: Planning failed; no definition saved }
+        "409":
+          description: Repository-backed contract workflow required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioBlockedResponse" }
   /enterprise/mcp:
     post:
       operationId: callEnterpriseMcp
@@ -478,7 +521,8 @@ paths:
     get:
       operationId: downloadComponentPackage
       tags: [workspace]
-      summary: Generate a runnable MCP package from a saved definition
+      summary: Retained prototype package contract, blocked in MOSSI Studio
+      deprecated: true
       parameters:
         - name: id
           in: query
@@ -493,6 +537,11 @@ paths:
             type: string
             enum: [cloudflare, openshell]
       responses:
+        "409":
+          description: Standalone source downloads are outside the MOSSI contribution path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioBlockedResponse" }
         "200":
           description: Generated package archive
           content:
@@ -567,12 +616,19 @@ paths:
     post:
       operationId: generateLanguageMcpPackage
       tags: [MCP]
+      deprecated: true
+      description: Retained prototype contract. MOSSI Studio rejects standalone generation with 409 before model or generator execution.
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: "#/components/schemas/LanguageMcpPackageInput" }
       responses:
+        "409":
+          description: Repository-backed contract and merge-request workflow required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudioBlockedResponse" }
         "200":
           description: Reviewable AI-generated source package; build and protocol checks are not implied
           content:
@@ -598,6 +654,61 @@ components:
       schema:
         type: integer
   schemas:
+    StudioWorkflow:
+      type: object
+      required: [name, phase, status, integrations, languagePolicy, delivery, actions, blockers]
+      properties:
+        name: { type: string }
+        phase: { type: string }
+        status: { type: string, enum: [blocked] }
+        integrations:
+          type: array
+          items:
+            type: object
+            required: [id, name, status, purpose]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              status: { type: string, enum: [not_connected, unverified] }
+              purpose: { type: string }
+        languagePolicy:
+          type: object
+          required: [status, allowedLanguages, suggestedLanguages]
+          properties:
+            status: { type: string, enum: [unverified] }
+            allowedLanguages: { type: array, items: { type: string } }
+            suggestedLanguages: { type: array, items: { type: string } }
+        delivery:
+          type: object
+          required: [status, pipeline, capabilityPath, viewPath, contractReview]
+          properties:
+            status: { type: string, enum: [unverified] }
+            pipeline: { type: string }
+            capabilityPath: { type: string }
+            viewPath: { type: string }
+            contractReview: { type: string }
+        actions:
+          type: object
+          required: [canSearchInternal, canDraftGovernedContract, canGenerateImplementation, canOpenMergeRequest]
+          properties:
+            canSearchInternal: { type: boolean }
+            canDraftGovernedContract: { type: boolean }
+            canGenerateImplementation: { type: boolean }
+            canOpenMergeRequest: { type: boolean }
+        blockers: { type: array, items: { type: string } }
+    StudioReuseInput:
+      type: object
+      additionalProperties: false
+      required: [goal]
+      properties:
+        goal: { type: string, minLength: 8, maxLength: 2000 }
+    StudioBlockedResponse:
+      type: object
+      required: [code, error, workflow]
+      properties:
+        code: { type: string, enum: [MOSSI_INTEGRATION_REQUIRED, MOSSI_CONTRIBUTION_REQUIRED] }
+        error: { type: string }
+        workflow: { $ref: "#/components/schemas/StudioWorkflow" }
     McpDiscoveryOAuthStartInput:
       type: object
       additionalProperties: false

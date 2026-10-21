@@ -1,16 +1,27 @@
-# Control Plane
+# MOSSI Studio
 
-**An enterprise knowledge workspace and AI-assisted factory for standardized agents, MCP servers, and MCP Apps.**
+**A guided, reuse-first contribution capability for MOSSI.**
 
-Control Plane helps teams turn shared knowledge, approved capabilities, and engineering standards into reusable software definitions and reviewable source packages. Instead of asking a development team to build every integration or assistant independently, it provides a common place to discover an approach, describe the intended behavior, select standards, and generate an implementation.
+MOSSI Studio helps developers and non-developers discover existing internal capabilities, agree on tools, schemas, permissions, and views before implementation, and prepare a contribution to the authoritative monorepo. Its purpose is to make MOSSI's standard path easier—not create a parallel standards store, second brain, approval system, or deployment platform.
 
 The operating model is:
 
-> Bring the right knowledge and standards together → let AI assist with creation → validate the implementation → have a human review and approve it → deploy a fixed, versioned release.
+> Describe a goal → check internal reuse → draft and review the contract → open a monorepo merge request → use the existing CI, owners, and delivery pipeline.
 
-The repository implements the knowledge workspace, catalogue, guided builder, saved definitions, source-package generation, and scoped enterprise context interfaces. **It does not yet implement the complete approval, isolated verification, or deployment pipeline.** Cloudflare and NVIDIA OpenShell are runtime targets, not connected execution services in the current application.
+### Current refactor status
 
-**Proposed MOSSI direction:** The [MOSSI capability-builder brief](docs/mossi-capability-builder-brief.md) describes a narrower integration: reuse internal capabilities first, review the contract before code generation, and contribute through the existing monorepo review and delivery pipeline. It explains what to keep, adapt, and retire. That proposal has not changed the implementation documented below.
+This is the **integration-foundation phase**, not a connected MOSSI installation.
+
+- The primary builder is now reuse-first and displays server-owned integration readiness.
+- Internal discovery explicitly returns unavailable until enterprise identity and internal sources are connected. Unavailability is never a no-match result.
+- Contract generation, implementation generation, and MR creation remain locked until their authoritative integrations are verified.
+- Standalone prototype planning and source-package download endpoints return `409 MOSSI_CONTRIBUTION_REQUIRED` before model or generator execution.
+- Existing wiki records, agent/component definitions, legacy source snapshots, compatibility identifiers, and prototype builder progress are retained. No data migration or deletion is part of this refactor.
+- The public MCP catalogue is an external reference library, not the internal capability registry.
+- TypeScript/Python are suggested candidates, **not a verified language allowlist**. Renderer YAML contracts, repository paths, review rules, and the GitLab CI → OCI → Flux → Kubernetes delivery path still require confirmation.
+- Cloudflare/OpenShell are not alternative Studio deployment choices. Existing runtime prototype code remains preserved and disconnected.
+
+The [MOSSI capability-builder brief](docs/mossi-capability-builder-brief.md) describes the target architecture and integration prerequisites. The remaining sections below document retained prototype concepts and infrastructure as well as the target operating model; legacy generation descriptions are **not currently enabled API behavior**.
 
 ## Contents
 
@@ -28,6 +39,10 @@ The repository implements the knowledge workspace, catalogue, guided builder, sa
 - [Further documentation](#further-documentation)
 
 ## What this is
+
+Studio's three responsibilities are **reuse before creation, contracts before code, and a guided contribution path for non-developers**. MOSSI's existing registry, second brain, repository standards, identity, CI, owners, and delivery systems should remain authoritative.
+
+The following concepts explain the prototype this refactor builds on. Local knowledge and definitions remain available for reference, but are not MOSSI's enterprise sources of truth.
 
 Control Plane combines three related functions.
 
@@ -76,16 +91,16 @@ Example uses include preparing a developer-tool MCP server, defining a research 
 
 | Area | Available behavior | Important boundary |
 | --- | --- | --- |
-| Overview | Inspect workspace activity, saved definitions, knowledge statistics, and runtime readiness. | Readiness is reported explicitly; an unconnected adapter is not a running service. |
-| Knowledge | Manage shared wiki documents and ask cited questions with retrieval, reranking, and cached responses. | Shared/demo content is not an authenticated enterprise knowledge portal. |
-| MCP catalogue | Search imported community references, inspect source context, and begin a guided build. | Entries remain references, not approved or installed integrations. |
-| Guided builder | Match a goal to catalogue entries, choose an approach, draft a specification, edit its schema, save it, and generate source. | Matching is deterministic catalogue retrieval; AI generation produces drafts, not verified releases. |
-| Agents | Create and maintain structured agent definitions. | Saving does not start execution. |
-| MCP components | Maintain server/app definitions and generate compatible source packages. | Package generation does not run installers, build the project, or deploy it. |
+| Overview | Understand Studio's contribution workflow and integration readiness. | Not a connected enterprise installation. |
+| Reference knowledge | Manage prototype wiki documents and ask cited questions with retrieval, reranking, and cached responses. | Not the enterprise second brain; do not submit confidential data. |
+| External references | Search imported community metadata and inspect its source context. | This does not satisfy internal reuse checks. |
+| Studio builder | Submit a goal for reuse readiness checking and inspect blockers and the contract-first handoff. | Internal search returns `503`, not empty matches; later actions remain locked. |
+| Prototype agents | Maintain existing structured definitions. | Not approved MOSSI capabilities or running agents. |
+| Prototype components | Inspect and edit retained server/app definitions. | Standalone generation/downloads are disabled; saving is not repository approval. |
 | Enterprise context | Publish versioned standards and explicitly grant documents and tools to a workspace/user pair. | This scoped interface does not supply a complete enterprise identity or approval system. |
 | OpenMetadata context | Use version-qualified reference knowledge and portable profile templates. | A real enterprise OpenMetadata instance is not connected by importing its documentation. |
 
-The main interface routes are `/`, `/knowledge`, `/catalogue`, `/builder`, `/agents`, and `/mcp`.
+The main interface routes are `/` and `/builder`; reference/prototype routes include `/knowledge`, `/catalogue`, `/agents`, `/mcp`, `/runtimes`, and `/prototype/builder`. The previous builder journey remains under its original session-storage key.
 
 ## How it works
 
@@ -140,7 +155,9 @@ The builder ranks actual catalogue records rather than asking a model to invent 
 
 Catalogue discovery should not be confused with authenticated live discovery. A directory description is not evidence that a remote server is reachable, that a user may invoke its tools, or that its advertised capabilities have been verified.
 
-### From a definition to a package
+### Retained prototype: from a definition to a package
+
+The generators described here remain on disk for reference and compatibility. Studio's API blocks their standalone planning and archive endpoints. The target output is a repository contribution, not a downloaded project.
 
 A specification records the intended tool or component, including its name, description, and input schema. After the user explicitly saves that specification, generation uses the persisted definition together with official MCP references and applicable standards.
 
@@ -163,22 +180,22 @@ This reduces repeated setup and makes differences between integrations easier to
 
 ## A typical workflow
 
-Suppose a user asks: **“Let’s build a developer MCP server tool today. What can you help me with?”**
+The target workflow for a request such as **“Let’s build a developer MCP server tool today”** is:
 
-1. **Describe the goal.** Open the guided builder and explain the intended capability.
-2. **Explore real references.** Review matching catalogue entries and select a useful starting point.
-3. **Choose the contract.** Select the SDK language, compatible target, transport, data source, and access requirements. Do not put credentials into the request.
-4. **Draft with AI.** Generate a specification grounded in official guidance and the selected standards.
-5. **Review and edit.** Check the tool description and input schema before explicitly saving the definition.
-6. **Generate source.** Download a package from that saved definition and inspect its manifest and required-review document.
-7. **Verify outside generation.** Resolve dependencies on a compatible build host; compile, test protocol behavior, check permissions, audit dependencies, and validate failure cases.
-8. **Approve and deploy a fixed release.** This is the intended release process, not an implemented one-click pipeline in the current workspace.
+1. **Describe the goal.** Start at `/builder`; avoid credentials and private sample records.
+2. **Check internal reuse.** Search the authorized capability registry, canonical schemas, and OpenMetadata. Use an existing capability or extend it where appropriate. This stage is currently blocked because those services and enterprise identity are not connected.
+3. **Draft a contract.** Use pinned repository standards, canonical schema references, least-privilege permissions, and renderer-compatible YAML views. This stage remains locked.
+4. **Review the exact contract.** Use repository-owned owner review before generating implementation, not a local Save/Approve button.
+5. **Prepare the monorepo contribution.** Generate only in approved template paths and open or update a GitLab MR. No such write integration is connected yet.
+6. **Observe the existing pipeline.** CI, owners, and the established deployment system control verification, approval, and release. Studio must not bypass them.
 
 For scoped enterprise creation, an operator must first publish the chosen standards and grant the exact documents and tools to the intended workspace/user pair. The public builder must not be treated as permission to use private enterprise knowledge.
 
 “Deterministic operation” means deploying fixed source, configuration, and locked dependencies rather than regenerating an implementation on each request. **An approved agent that calls an LLM can still produce probabilistic answers.**
 
 ## Standards and language support
+
+**Studio policy:** supported languages and schemas must come from the authoritative MOSSI repository. No language is currently verified as permitted. The eleven-language registry below is retained prototype infrastructure, not the Studio contribution menu.
 
 Control Plane imports selected specification material and reference snapshots from the official [Model Context Protocol organization](https://github.com/modelcontextprotocol). The snapshots are pinned and checksummed; they are not full SDK installations.
 
@@ -212,6 +229,8 @@ Additional review rigor applies to these twelve catalogue areas:
 These profiles add domain-specific controls, required evidence, and acceptance expectations. Their presence does not mean a catalogue entry or generated package has passed them.
 
 ## Cloudflare OS and NVIDIA OpenShell
+
+**Studio boundary:** neither is a selectable deployment destination in the primary contribution workflow. These sections describe preserved prototype work. OpenShell's possible role as MOSSI's agent enforcement layer must be verified independently.
 
 ### Cloudflare OS
 
@@ -273,7 +292,7 @@ vendor/
 docs/                       Detailed implementation and operating guides
 ```
 
-The `agent-foundry` directory, `@workspace/agent-foundry` package, and `FOUNDRY_*` settings retain their original names for compatibility. The product's display name is **Control Plane**.
+The `agent-foundry` directory, `@workspace/agent-foundry` package, and `FOUNDRY_*` settings retain their original names for compatibility. The capability's display name is **MOSSI Studio**. Historical Control Plane videos and generated package artwork are not regenerated by this refactor.
 
 ## Development and operation
 
@@ -350,6 +369,7 @@ pnpm --filter @workspace/scripts run test:enterprise
 pnpm --filter @workspace/scripts run test:mcp-discovery
 pnpm --filter @workspace/scripts run test:openmetadata
 pnpm --filter @workspace/scripts run cloudflare-os:test
+pnpm --filter @workspace/scripts exec tsx --test ../artifacts/api-server/src/lib/studio.test.ts
 
 # Regenerate shared API hooks and validators after changing the OpenAPI spec.
 pnpm --filter @workspace/api-spec run codegen
@@ -371,7 +391,7 @@ Before using this as an enterprise production service, account for these boundar
 6. **Multi-user collaboration is not complete governance.** Shared data and workspace/user-scoped interfaces are useful building blocks, not a finished multiplayer runtime or enterprise permission system.
 7. **Containers are not supplied as a turnkey deployment.** A production packaging, networking, persistence, secrets, and runtime topology still needs to be established.
 
-The useful boundary today is a knowledge-backed, standards-aware creation workspace that produces inspectable definitions and source packages. The intended next layer is verified, approved, versioned deployment—not autonomous release of unreviewed generated code.
+The useful boundary today is a Studio integration foundation with preserved prototype knowledge and definitions. The next layer is authorized internal reuse and repository-backed contract contributions—not a new approval or deployment platform.
 
 ## Further documentation
 

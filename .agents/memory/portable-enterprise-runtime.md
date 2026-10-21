@@ -3,6 +3,12 @@ name: Portable enterprise runtime
 description: Product scope and portability decisions for Agent Foundry's enterprise agent and MCP stack.
 ---
 
+**Historical scope:** the user subsequently named the capability MOSSI Studio and asked to refactor against the MOSSI feedback. The platform and dual-runtime direction below describes the preserved prototype, not the active Studio contribution path. Follow [current product direction](product-positioning.md) for new work.
+
+**Why:** The user narrowed the product to internal reuse, contract-first creation, and the existing monorepo review/delivery system.
+
+**How to apply:** Preserve compatibility and safety boundaries of existing runtime work without reintroducing Cloudflare/OpenShell as parallel Studio deployment targets.
+
 Agent Foundry is intended as a multiplayer enterprise second brain, agent factory, and MCP server/App builder built from a monorepo. The user selected portability across both Cloudflare and NVIDIA OpenShell rather than a single initial runtime.
 
 **Why:** The user explicitly described this product scope and chose “Portable across both.”

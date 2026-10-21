@@ -31,7 +31,7 @@ function Row({ entry, active, onSelect }: { entry: McpCatalogueEntry; active: bo
       <div className="flex items-center gap-2">
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? 'bg-primary' : 'bg-border'}`} />
         <span className="truncate text-[13px] font-semibold">{entry.name}</span>
-        {entry.officialListed && <span className="shrink-0 rounded border border-primary/25 px-1 text-[9px] font-semibold text-primary" title="Marked official in the upstream list. Not verified by Control Plane.">Listed official</span>}
+        {entry.officialListed && <span className="shrink-0 rounded border border-primary/25 px-1 text-[9px] font-semibold text-primary" title="Marked official in the upstream list. Not verified by MOSSI Studio.">Listed official</span>}
         {entry.knowledgeId != null && <BookOpen size={11} className="ml-auto shrink-0 text-muted-foreground" aria-label="Has knowledge document" />}
       </div>
       <p className="mt-1 line-clamp-2 pl-3.5 text-[11px] leading-relaxed text-muted-foreground">{entry.description || 'No description in source list.'}</p>
@@ -82,7 +82,7 @@ function Detail({ id, onClose }: { id: number; onClose: () => void }) {
           {entry.knowledgeId != null
             ? <Link href={`/knowledge?document=${entry.knowledgeId}`} data-testid="link-entry-knowledge" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[11px] font-semibold hover:bg-muted"><BookOpen size={13} />Knowledge document</Link>
             : <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-[11px] text-muted-foreground"><BookOpen size={13} />No knowledge document</span>}
-          <Link href={`/builder?catalogueId=${entry.id}`} data-testid="link-entry-builder" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:brightness-95"><ChevronRight size={13} />Start guided build</Link>
+          <Link href="/builder" data-testid="link-entry-builder" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:brightness-95"><ChevronRight size={13} />Start MOSSI contribution</Link>
           {standardsKnowledgeId != null && <Link href={`/knowledge?document=${standardsKnowledgeId}`} data-testid="link-standards-knowledge" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-[11px] font-semibold hover:bg-muted"><Library size={13} />Builder standards</Link>}
         </div>
         <ReviewStandards standards={reviewStandards} />
@@ -163,7 +163,7 @@ export default function CataloguePage() {
 
   return (
     <>
-      <PageHeading eyebrow="MCP server catalogue" title="Start from what exists." description="A searchable directory of community MCP server references from awesome-mcp-servers, each linked to its source and the shared knowledge base. Listings are unreviewed references, not approved integrations."
+      <PageHeading eyebrow="External reference library" title="Public inspiration, not internal reuse." description="This is not the MOSSI capability registry. A searchable directory of community MCP server references from awesome-mcp-servers, each linked to its source and the shared knowledge base. Listings are unreviewed references, not approved integrations, and selecting one never satisfies the internal reuse check."
         action={data && <div className="foundry-mono text-right text-[10px] uppercase tracking-wider text-muted-foreground"><div><span className="text-lg font-semibold text-foreground" data-testid="text-catalogue-total">{data.catalogueTotal.toLocaleString()}</span> entries</div><div>{data.knowledgeCount.toLocaleString()} in knowledge{data.sourceRevision ? ` · rev ${data.sourceRevision.slice(0, 7)}` : ''}</div>{data.importedAt && <div>imported {new Date(data.importedAt).toLocaleDateString()}</div>}</div>} />
       <Panel className="mb-4 grid gap-3 p-4 md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
         <label className="block">

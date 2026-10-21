@@ -1,10 +1,19 @@
-# Control Plane
+# MOSSI Studio
 
-Control Plane brings enterprise knowledge, governed capability definitions, and standards together for reviewable AI delivery. It supports grounded knowledge retrieval, standardized agent definitions, and MCP server/app contracts that can target Cloudflare or NVIDIA OpenShell. Package generation is not deployment or approval; live runtime execution remains disconnected.
+MOSSI Studio is the guided capability contribution path for MOSSI: internal reuse first, contract review before implementation, then a monorepo merge request through existing CI/owners/delivery. The current refactor is an integration foundation, not a connected enterprise installation. See `docs/mossi-capability-builder-brief.md`.
+
+## Studio refactor boundary
+
+- `/studio/workflow` reports server-owned readiness; `/studio/reuse` fails closed with 503 until enterprise identity and internal discovery are connected. Unavailable is not no-match.
+- Studio blocks standalone prototype `/builder/discover`, `/builder/plan`, and `/component-packages` generation/download paths with 409 before generator execution.
+- Preserve prototype records, source snapshots, legacy package/route names, and prior builder session storage; no destructive migration was authorized.
+- MOSSI repository standards, Global schemas, language allowlist, renderer YAML, GitLab review rules, and internal service contracts remain unverified. TypeScript/Python are suggestions, not approved policy.
+- Do not build a competing second brain, standards authority, approval service, or deployment path. Cloudflare/OpenShell prototype work is not a Studio deployment choice.
+- The historical sections below document retained prototype infrastructure, not proof of connected MOSSI behavior.
 
 ## Branding and compatibility
 
-Use **Control Plane** for product display text. The existing `artifacts/agent-foundry` directory, workspace package, preview route, saved builder journey key/version, `FOUNDRY_*` settings, MCP tool names, package/manifest identifiers, and managed knowledge source prefixes are compatibility contracts, not branding. Keep them stable; present managed sources with separate display labels rather than rewriting stored data or user-authored content.
+Use **MOSSI Studio** for current capability display text. The existing `artifacts/agent-foundry` directory, workspace package, preview route, saved builder journey key/version, `FOUNDRY_*` settings, MCP tool names, package/manifest identifiers, and managed knowledge source prefixes are compatibility contracts, not branding. Keep them stable; present managed sources with separate display labels rather than rewriting stored data or user-authored content. Do not regenerate historical Control Plane videos as a side effect of the application rename.
 
 ## Run & Operate
 

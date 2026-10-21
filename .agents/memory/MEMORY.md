@@ -1,4 +1,4 @@
-- [Portable enterprise runtime](portable-enterprise-runtime.md) — provider-neutral definitions for Cloudflare and NVIDIA OpenShell; generation is separate from connected deployment.
+- [Historical portable runtime](portable-enterprise-runtime.md) — preserved prototype scope; current MOSSI Studio contributions follow the existing enterprise delivery path.
 - [Cloudflare OS hosting](cloudflare-os-hosting.md) — distinguish development preview from production hosting; cached build execution and local admin assumptions need care.
 - [MCP standardization priorities](mcp-standardization-priorities.md) — twelve categories need extra rigor; official SDK sources must preserve the user's requested server language.
 - [Builder model contracts](builder-model-contracts.md) — JSON response mode does not ensure a typed planning contract; use explicit output shapes and fail-closed validation.
@@ -6,4 +6,5 @@
 - [OpenMetadata source policy](openmetadata-source-policy.md) — intended enterprise catalogue source; reference understanding does not authorize live instance access.
 - [Generated validation constants](codegen-validation-quirk.md) — generated validators can use numeric constants before declaration; generation alone is not verification.
 - [Discovery revocation](discovery-revocation.md) — restoring identical permissions must not restore old discovery evidence; keep monotonic invalidation.
-- [Product naming intent](product-positioning.md) — Control Plane reflects decisions across knowledge, approved capabilities, standards, and AI delivery, not only agent creation.
+- [MOSSI Studio direction](product-positioning.md) — reuse-first, contract-first monorepo contributions; do not build a parallel enterprise platform.
+- [Zod schema compatibility](zod-schema-compatibility.md) — compose runtime validators with the same Zod API as generated schemas; type checks alone can miss incompatibility.

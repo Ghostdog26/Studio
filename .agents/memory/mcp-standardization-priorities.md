@@ -3,6 +3,12 @@ name: MCP standardization priorities
 description: User-requested priority categories and official multi-language SDK direction
 ---
 
+**Current MOSSI Studio scope:** the earlier multi-language direction below belongs to the preserved prototype. New Studio contributions must use the enterprise repository's verified language policy, not the eleven-language menu. No allowed language should be inferred from the feedback's TypeScript/Python suggestions.
+
+**Why:** The user adopted the MOSSI feedback as the refactor direction.
+
+**How to apply:** Verify the authoritative templates and language allowlist before enabling generation; preserve existing language infrastructure without making it a Studio policy source.
+
 The user requested extra rigor for Cloud Platforms, Code Execution, Coding Agents, Command Line, Databases, Data Platforms, Developer Tools, Data Science Tools, Data Visualization, Knowledge & Memory, Product Management, and Search & Data Extraction.
 
 **Why:** These twelve areas are explicitly important to the enterprise factory and second-brain product.

@@ -5,9 +5,9 @@ const CATEGORY_SOURCE_PREFIX = 'Agent Foundry priority MCP standards | ';
 const MCP_STANDARDS_SOURCE = 'Agent Foundry MCP architecture guidance';
 
 export function knowledgeSourceLabel(source: string): string {
-  if (source === MCP_STANDARDS_SOURCE) return 'Control Plane MCP architecture guidance';
+  if (source === MCP_STANDARDS_SOURCE) return 'MOSSI Studio MCP architecture guidance';
   for (const prefix of [OPENMETADATA_SOURCE_PREFIX, CATEGORY_SOURCE_PREFIX]) {
-    if (source.startsWith(prefix)) return `Control Plane${source.slice('Agent Foundry'.length)}`;
+    if (source.startsWith(prefix)) return `MOSSI Studio${source.slice('Agent Foundry'.length)}`;
   }
   return source;
 }

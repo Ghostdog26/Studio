@@ -1,5 +1,7 @@
 # Official MCP sources and language-aware generation
 
+> **MOSSI Studio refactor:** this guide describes retained prototype generation infrastructure. Public-first `/builder/discover`, `/builder/plan`, and standalone component package endpoints now return `409 MOSSI_CONTRIBUTION_REQUIRED`. The primary `/builder` follows internal-reuse and contract-first integration readiness instead. No MR integration is connected yet. See the [Studio brief](mossi-capability-builder-brief.md).
+
 `https://github.com/modelcontextprotocol` is the official organization, not a single repository. Control Plane imports:
 
 - The `modelcontextprotocol/modelcontextprotocol` specification repository's README, license, language-neutral JSON Schema, and selected normative architecture, transport, authorization, tools, resources, and prompts documents.
