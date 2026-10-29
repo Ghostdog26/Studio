@@ -6,5 +6,6 @@
 - [OpenMetadata source policy](openmetadata-source-policy.md) — intended enterprise catalogue source; reference understanding does not authorize live instance access.
 - [Generated validation constants](codegen-validation-quirk.md) — generated validators can use numeric constants before declaration; generation alone is not verification.
 - [Discovery revocation](discovery-revocation.md) — restoring identical permissions must not restore old discovery evidence; keep monotonic invalidation.
+- [Discovery infrastructure safety](discovery-infrastructure-safety.md) — destructive rehearsals must provision their own local database, never accept an existing enterprise connection.
 - [MOSSI Studio direction](product-positioning.md) — reuse-first, contract-first monorepo contributions; do not build a parallel enterprise platform.
 - [Zod schema compatibility](zod-schema-compatibility.md) — compose runtime validators with the same Zod API as generated schemas; type checks alone can miss incompatibility.

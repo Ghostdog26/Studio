@@ -8,6 +8,7 @@
     "catalogue:import": "node scripts/import-mcp-catalogue.mjs",
     "mcp:official-import": "node scripts/import-official-mcp.mjs",
     "catalogue:test": "node --experimental-strip-types --test tests/catalogue-parser.test.mjs",
+    "discovery:rehearse": "node scripts/rehearse-discovery.mjs",
     "mcp:languages-test": "node scripts/test-language-projects.mjs",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",

@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
@@ -18,6 +18,13 @@ import {
   RefreshMcpDiscoveryOAuthResponse, RevokeMcpDiscoveryOAuthResponse,
 } from "@workspace/api-zod";
 import { DiscoveryOAuth } from "./mcp-discovery-oauth";
+import { rehearseDiscoveryInfrastructure } from "./fixtures/discovery-rehearsal";
+
+after(() => pool.end());
+test("opt-in: discovery survives process crashes and a disposable database restart", {
+  skip: !process.env.MCP_DISCOVERY_INFRA_REHEARSAL,
+  timeout: 150_000,
+}, rehearseDiscoveryInfrastructure);
 
 function deferred() {
   let resolve!: () => void;
@@ -504,6 +511,5 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     if (documentId) await db.delete(knowledgeDocumentsTable).where(eq(knowledgeDocumentsTable.id, documentId));
     await rm(folder, { recursive: true, force: true });
     await db.execute(sql`DELETE FROM mcp_discovery_coordination WHERE id = ${apiCoordinationId}`);
-    await pool.end();
   }
 });
