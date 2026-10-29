@@ -19,6 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { DiscoveryOAuth } from "./mcp-discovery-oauth";
 import { rehearseDiscoveryInfrastructure } from "./fixtures/discovery-rehearsal";
+import { createDiscoveryOperations, discoveryOperations } from "./mcp-discovery-operations";
 
 after(() => pool.end());
 test("opt-in: discovery survives process crashes and a disposable database restart", {
@@ -33,6 +34,9 @@ function deferred() {
 }
 
 test("discovery API isolates users, expires evidence, rejects arbitrary RPC and discards revoked results", async (t) => {
+  const operationalEvents: Array<{ signal: string; operation: string }> = [];
+  t.mock.method(discoveryOperations, "record", (signal: string, operation: string) =>
+    operationalEvents.push({ signal, operation }));
   const fixtureId = randomBytes(6).toString("hex");
   const workspaceId = `discovery-fixture-${fixtureId}`;
   const userId = "fictional-user";
@@ -229,6 +233,7 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     assert.equal(discoveries, 1);
     assert.equal((await results())[0]!.status, "verified");
     assert.equal((await call("/fixture", "POST")).status, 429);
+    assert.ok(operationalEvents.some(e => e.signal === "user_rate_denied"));
     assert.equal(discoveries, 1);
     await t.test("another API instance cannot start while the user's first request holds a lease", async () => {
       const started = deferred();
@@ -247,17 +252,17 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
       }
     });
     const realNow = Date.now();
-    t.mock.method(Date, "now", () => realNow + 6 * 60000);
+    const expiryClock = t.mock.method(Date, "now", () => realNow + 6 * 60000);
     assert.equal((await results())[0]!.status, "stale");
     assert.equal((await results())[0]!.inventory, null);
-    t.mock.restoreAll();
+    expiryClock.mock.restore();
     mode = "failed";
     await clearRate();
-    t.mock.method(Date, "now", () => realNow + 61000);
+    const refreshClock = t.mock.method(Date, "now", () => realNow + 61000);
     const failedRefresh = RefreshMcpDiscoveryEvidenceResponse.parse(await (await call("/fixture", "POST")).json());
     assert.equal(failedRefresh.status, "unknown");
     assert.equal(failedRefresh.inventory, null, "failed refresh must not serve the previous verified inventory");
-    t.mock.restoreAll();
+    refreshClock.mock.restore();
     mode = "success";
     await t.test("an oversized inventory fails explicitly without retaining its payload", async () => {
       await clearRate();
@@ -351,12 +356,14 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     let providerCalls = 0;
     let refreshDenied = false;
     let revokeDuringExchange = false;
+    let afterOAuthExchange: (() => Promise<void>) | undefined;
     oauth = new DiscoveryOAuth(async (_endpoint, form) => {
       providerCalls++;
       if (revokeDuringExchange) {
         await db.delete(enterpriseDocumentGrantsTable).where(eq(enterpriseDocumentGrantsTable.workspaceId, workspaceId));
       }
       if (form.get("grant_type") === "refresh_token" && refreshDenied) throw new Error("invalid_grant");
+      await afterOAuthExchange?.();
       return { status: 200, body: {
         access_token: expectedOAuthAccess, token_type: "Bearer", refresh_token: "fictional-refresh", expires_in: 300,
       } };
@@ -459,15 +466,61 @@ test("discovery API isolates users, expires evidence, rejects arbitrary RPC and 
     assert.equal((await results())[0]!.status, "denied",
       "revoke/restore while idle must invalidate OAuth credentials, not only discovery evidence");
     assert.equal((await call("/fixture", "POST")).status, 403);
+    await t.test("OAuth post-action protection read failures emit critical alerts and discard credentials", async t => {
+      for (const failure of ["policy", "authorization"] as const) {
+        await saveOAuthPolicy();
+        await resetOAuthHarness();
+        const callback = await begin();
+        const logs: Array<Record<string, unknown>> = [];
+        const capture = (fields: object) => { logs.push({ ...fields }); };
+        const ops = createDiscoveryOperations({ info: capture, warn: capture, error: capture });
+        const observation = t.mock.method(discoveryOperations, "record", ops.record);
+        let restoreRead: (() => void) | undefined;
+        afterOAuthExchange = async () => {
+          if (failure === "policy") await writeFile(policyPath, "{invalid-private-policy");
+          else {
+            const read = t.mock.method(db, "select", () => { throw new Error("private authorization database detail"); });
+            restoreRead = () => read.mock.restore();
+          }
+        };
+        const beforeCalls = providerCalls;
+        const beforeDiscoveries = discoveries;
+        try {
+          const response = await call("/fixture/oauth/callback", "POST", callback);
+          assert.equal(response.status, 503);
+          assert.equal(response.headers.get("cache-control"), "no-store");
+          const body = await response.text();
+          assert.equal(body.includes("private"), false);
+          assert.equal(body.includes("credentialReference"), false);
+          assert.equal(providerCalls, beforeCalls + 1, "the provider exchange succeeds exactly once");
+          assert.equal(discoveries, beforeDiscoveries, "protection failure must not trigger discovery");
+          assert.equal(logs.filter(e => e.event === "mcp_discovery_alert" &&
+            e.signal === "route_protection_unavailable" && e.operation === "oauth" &&
+            e.severity === "critical").length, 1);
+          assert.equal(JSON.stringify(logs).includes("private"), false);
+        } finally {
+          afterOAuthExchange = undefined;
+          restoreRead?.();
+          observation.mock.restore();
+          await saveOAuthPolicy();
+        }
+        assert.equal((await results())[0]!.status, "denied", "no credential survives the failed post-action check");
+        const released = await db.execute(sql`SELECT state->'leases' AS leases
+          FROM mcp_discovery_coordination WHERE id = ${apiCoordinationId}`);
+        assert.deepEqual(released.rows[0]!.leases, [], "finish still releases the lease successfully");
+      }
+    });
     oauth = undefined;
     await savePolicy();
     mode = "revoke";
     await startHarness();
     await clearRate();
     assert.equal((await call("/fixture", "POST")).status, 403);
+    assert.ok(operationalEvents.some(e => e.signal === "authorization_change_discard" && e.operation === "refresh"));
     assert.equal((await results())[0]!.inventory, null);
     await writeFile(policyPath, "{broken");
     assert.equal((await call()).status, 503);
+    assert.ok(operationalEvents.some(e => e.signal === "route_protection_unavailable" && e.operation === "list"));
     await savePolicy();
     delete process.env.MCP_DISCOVERY_POLICY_FILE;
     assert.deepEqual(await results(), []);

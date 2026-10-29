@@ -14,6 +14,7 @@ import {
   RevokeMcpDiscoveryOAuthBody, RevokeMcpDiscoveryOAuthResponse,
 } from "@workspace/api-zod";
 import { DiscoveryOAuth } from "../lib/mcp-discovery-oauth";
+import { discoveryOperations, DiscoveryCoordinationFailure, type DiscoveryOperation } from "../lib/mcp-discovery-operations";
 
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 type Grant = typeof enterpriseGrantsTable.$inferSelect;
@@ -74,9 +75,10 @@ function remove(key: string) {
   evidenceBytes -= evidence.get(key)?.bytes ?? 0;
   evidence.delete(key);
 }
-function prune(revision?: string) {
+function prune(revision?: string, operation: DiscoveryOperation = "list") {
+  let discarded = 0;
   for (const [key, saved] of evidence) {
-    if (revision !== undefined && saved.revision !== revision) { remove(key); continue; }
+    if (revision !== undefined && saved.revision !== revision) { remove(key); discarded++; continue; }
     if (Date.parse(saved.expiresAt) <= Date.now()) {
       // Keep only the bounded status metadata so the UI can still report "stale".
       evidenceBytes -= saved.bytes;
@@ -84,6 +86,7 @@ function prune(revision?: string) {
       saved.bytes = 0;
     }
   }
+  if (discarded) discoveryOperations.record("authorization_change_discard", operation, discarded);
 }
 // Idle replicas also drop expired payloads. The timer does not keep a worker alive.
 const cleanup = setInterval(() => prune(), 30_000);
@@ -108,7 +111,7 @@ router.all("/enterprise/mcp-discovery/:id/oauth/:action", async (req, res): Prom
     const { id, action } = req.params;
     const policy = await loadDiscoveryPolicy();
     const scopeRevision = `${revision}:${policy.revision}`;
-    prune(scopeRevision);
+    prune(scopeRevision, "oauth");
     const approval = policy.approvals.find(a =>
       a.id === id && a.workspaceId === grant.workspaceId && a.userId === grant.userId);
     const binding = approval ? await scopeFor(approval, grant, scopeRevision) : null;
@@ -134,12 +137,28 @@ router.all("/enterprise/mcp-discovery/:id/oauth/:action", async (req, res): Prom
     if (!lease) controller.abort();
     const timer = setTimeout(() => controller.abort(), 20000);
     const oldEvidenceKey = evidenceKey(approval, binding);
+    let protectionUnavailable = false;
+    async function checkProtection<T>(check: () => Promise<T>): Promise<T> {
+      try { return await check(); }
+      catch (error) {
+        protectionUnavailable = true;
+        // Provider/credential rejections are not outages. Only failures while
+        // reading the authorization boundary enter this helper.
+        if (!(error instanceof DiscoveryCoordinationFailure)) {
+          discoveryOperations.record("route_protection_unavailable", "oauth");
+        }
+        throw error;
+      }
+    }
     try {
       let result: unknown;
       let live = false;
       try {
-        if ((lease && lease.revision !== revision) || await coordinator.revision() !== revision ||
-            (await loadDiscoveryPolicy()).revision !== policy.revision) {
+        const unchanged = await checkProtection(async () =>
+          !(lease && lease.revision !== revision) && await coordinator.revision() === revision &&
+          (await loadDiscoveryPolicy()).revision === policy.revision);
+        if (!unchanged) {
+          discoveryOperations.record("authorization_change_discard", "oauth");
           throw new DiscoveryFailure("remote-denied");
         }
         if (action === "authorize") result = BeginMcpDiscoveryOAuthResponse.parse(oauth.begin(approval, binding));
@@ -150,12 +169,16 @@ router.all("/enterprise/mcp-discovery/:id/oauth/:action", async (req, res): Prom
         else result = RevokeMcpDiscoveryOAuthResponse.parse(
           await oauth.revoke(approval, binding, RevokeMcpDiscoveryOAuthBody.parse(input.data).credentialReference, controller.signal));
         if (oldEvidenceKey && action !== "authorize") remove(oldEvidenceKey);
-        const currentGrant = await authenticate(req);
-        const currentPolicy = await loadDiscoveryPolicy();
-        const currentApproval = currentPolicy.approvals.find(a => a.id === id);
-        if (!currentGrant || !currentApproval ||
-            await scopeFor(currentApproval, currentGrant, `${revision}:${currentPolicy.revision}`) !== binding ||
-            await coordinator.revision() !== revision) {
+        const authorized = await checkProtection(async () => {
+          const currentGrant = await authenticate(req);
+          const currentPolicy = await loadDiscoveryPolicy();
+          const currentApproval = currentPolicy.approvals.find(a => a.id === id);
+          return !!currentGrant && !!currentApproval &&
+            await scopeFor(currentApproval, currentGrant, `${revision}:${currentPolicy.revision}`) === binding &&
+            await coordinator.revision() === revision;
+        });
+        if (!authorized) {
+          discoveryOperations.record("authorization_change_discard", "oauth");
           throw new DiscoveryFailure("remote-denied");
         }
       } finally {
@@ -164,12 +187,19 @@ router.all("/enterprise/mcp-discovery/:id/oauth/:action", async (req, res): Prom
       }
       if (!live) throw new DiscoveryFailure("remote-denied");
       res.json(result);
-    } catch {
+    } catch (error) {
+      if (protectionUnavailable || error instanceof DiscoveryCoordinationFailure) {
+        oauth.invalidate(binding);
+        if (oldEvidenceKey && action !== "authorize") remove(oldEvidenceKey);
+        res.status(503).json({ error: "Discovery protection is unavailable." });
+        return;
+      }
       oauth.invalidate(binding);
       if (oldEvidenceKey && action !== "authorize") remove(oldEvidenceKey);
       res.status(403).json({ error: "OAuth credential or authorization rejected; restart authorization if necessary." });
     }
-  } catch {
+  } catch (error) {
+    if (!(error instanceof DiscoveryCoordinationFailure)) discoveryOperations.record("route_protection_unavailable", "oauth");
     res.status(503).json({ error: "Discovery policy or authorization evidence is unavailable." });
   }
 });
@@ -207,7 +237,7 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
     const policy = await loadDiscoveryPolicy();
     const scopeRevision = `${revision}:${policy.revision}`;
     // A revoked/restored grant or operator policy must never resurrect an old inventory.
-    prune(scopeRevision);
+    prune(scopeRevision, req.method === "GET" ? "list" : "refresh");
     const approvals = policy.approvals.filter(a => a.workspaceId === grant.workspaceId && a.userId === grant.userId);
     const id = req.params.id;
     if (req.method === "GET") {
@@ -215,6 +245,7 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
       const scopes = [];
       for (const approval of approvals) scopes.push({ approval, key: evidenceKey(approval, await scopeFor(approval, grant, scopeRevision)) });
       if (await coordinator.revision() !== revision || (await loadDiscoveryPolicy()).revision !== policy.revision) {
+        discoveryOperations.record("authorization_change_discard", "list");
         for (const key of evidence.keys()) remove(key);
         res.status(403).json({ status: "denied", error: "Discovery authorization changed; results discarded." }); return;
       }
@@ -238,6 +269,7 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
       res.status(429).json({ error: "Discovery capacity or shared request limit reached." }); return;
     }
     if (lease.revision !== revision) {
+      discoveryOperations.record("authorization_change_discard", "refresh");
       await coordinator.finish(lease);
       res.status(403).json({ status: "denied", error: "Discovery authorization changed; results discarded." }); return;
     }
@@ -289,16 +321,20 @@ router.all("/enterprise/mcp-discovery{/:id}", async (req, res): Promise<void> =>
       live = await coordinator.finish(lease);
     }
     if (!authorized || !live || !currentApproval) {
+      if (!authorized || !currentApproval) discoveryOperations.record("authorization_change_discard", "refresh");
       remove(key);
       res.status(403).json({ status: "denied", error: "Discovery authorization or lease changed; results discarded." }); return;
     }
-    prune(scopeRevision);
+    prune(scopeRevision, "refresh");
     remove(key);
     while (evidence.size >= 1000 || evidenceBytes + result.bytes > 8 * 1024 * 1024) remove(evidence.keys().next().value!);
     evidence.set(key, result);
     evidenceBytes += result.bytes;
     res.json(RefreshMcpDiscoveryEvidenceResponse.parse(report(currentApproval, key)));
-  } catch {
+  } catch (error) {
+    if (!(error instanceof DiscoveryCoordinationFailure)) {
+      discoveryOperations.record("route_protection_unavailable", req.method === "GET" ? "list" : "refresh");
+    }
     // Do not log upstream data, secret references or credential-bearing errors.
     res.status(503).json({ status: "denied", error: "Discovery policy or authorization evidence is unavailable; no network fallback." });
   }

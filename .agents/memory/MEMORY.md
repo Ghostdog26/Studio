@@ -9,3 +9,4 @@
 - [Discovery infrastructure safety](discovery-infrastructure-safety.md) — destructive rehearsals must provision their own local database, never accept an existing enterprise connection.
 - [MOSSI Studio direction](product-positioning.md) — reuse-first, contract-first monorepo contributions; do not build a parallel enterprise platform.
 - [Zod schema compatibility](zod-schema-compatibility.md) — compose runtime validators with the same Zod API as generated schemas; type checks alone can miss incompatibility.
+- [Discovery operations](discovery-operations.md) — use credential-safe structured events; log alerts do not imply an external paging destination is connected.
